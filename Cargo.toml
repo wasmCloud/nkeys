@@ -1,0 +1,19 @@
+[package]
+name = "nkeys"
+version = "0.0.1"
+authors = ["Kevin Hoffman <alothien@gmail.com>"]
+edition = "2018"
+description = "Rust implementation of the NATS nkeys library"
+license = "MPL-2.0"
+homepage = "https://github.com/encabulators/nkeys"
+documentation = "https://docs.rs/nkeys"
+repository = "https://github.com/encabulators/nkeys"
+readme = "README.md"
+keywords = ["crypto", "nats", "ed25519", "cryptography"]
+categories = ["cryptography", "authentication"]
+
+[dependencies]
+clap = "2.32.0"
+signatory = "0.11.3"
+signatory-dalek = "0.11.0"
+
