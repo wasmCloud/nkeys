@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/encabulators/nkeys.svg?branch=master)](https://travis-ci.org/encabulators/nkeys)
+
 # NKeys
 
 Rust implementation of the [NATS nkeys](https://github.com/nats-io/nkeys) Go library.
