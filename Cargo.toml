@@ -12,6 +12,8 @@ readme = "README.md"
 keywords = ["crypto", "nats", "ed25519", "cryptography"]
 categories = ["cryptography", "authentication"]
 
+travis-ci = { repository = "encabulators/nkeys", branch = "master" }
+
 [dependencies]
 clap = "2.32.0"
 signatory = "0.11.3"
