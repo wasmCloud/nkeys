@@ -1,6 +1,6 @@
 [package]
 name = "nkeys"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Kevin Hoffman <alothien@gmail.com>"]
 edition = "2018"
 description = "Rust implementation of the NATS nkeys library"
@@ -16,4 +16,7 @@ categories = ["cryptography", "authentication"]
 clap = "2.32.0"
 signatory = "0.11.3"
 signatory-dalek = "0.11.0"
+rand = "0.6.5"
+byteorder = "1.3.1"
+data-encoding = "2.1.2"
 
