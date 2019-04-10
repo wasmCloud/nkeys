@@ -42,6 +42,8 @@ use rand::prelude::*;
 use signatory::ed25519;
 use signatory::{Ed25519PublicKey, Signature};
 use signatory_dalek::{Ed25519Signer, Ed25519Verifier};
+use std::fmt;
+use std::fmt::Debug;
 
 const ENCODED_SEED_LENGTH: usize = 58;
 
@@ -66,18 +68,39 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 
 /// The main interface used for reading and writing _nkey-encoded_ key pairs, including
 /// seeds and public keys.
+#[derive(Clone)]
 pub struct KeyPair {
     kp_type: KeyPairType,
-    rawkey: RawKeyType,
+    rawkey_kind: RawKeyKind,
     pk: Ed25519PublicKey,
 }
 
-enum RawKeyType {
+impl Debug for KeyPair {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "KeyPair {{ kp_type: {:?}, rawkey_kind: {:?}, pk: (hidden) }}",
+            self.kp_type, self.rawkey_kind
+        )
+    }
+}
+
+#[derive(Clone)]
+enum RawKeyKind {
     Seed(ed25519::Seed),
     Public,
 }
 
-#[derive(Debug)]
+impl Debug for RawKeyKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RawKeyKind::Public => write!(f, "Public"),
+            RawKeyKind::Seed(_) => write!(f, "Seed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 enum KeyPairType {
     Server,
     Cluster,
@@ -105,7 +128,7 @@ impl KeyPair {
         KeyPair {
             kp_type: kp_type,
             pk: pk_from_seed(&s),
-            rawkey: RawKeyType::Seed(s),
+            rawkey_kind: RawKeyKind::Seed(s),
         }
     }
 
@@ -148,7 +171,7 @@ impl KeyPair {
 
     /// Attempts to sign the given input with the key pair's seed
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
-        if let RawKeyType::Seed(ref seed) = self.rawkey {
+        if let RawKeyKind::Seed(ref seed) = self.rawkey_kind {
             let signer = Ed25519Signer::from(seed);
             let sig = ed25519::sign(&signer, input)?;
             Ok(sig.into_vec())
@@ -173,7 +196,7 @@ impl KeyPair {
     /// Attempts to return the encoded string for this key pair's seed. Remember that this
     /// value should be treated as a secret
     pub fn seed(&self) -> Result<String> {
-        if let RawKeyType::Seed(ref seed) = self.rawkey {
+        if let RawKeyKind::Seed(ref seed) = self.rawkey_kind {
             let mut raw = vec![];
             let prefix_byte = get_prefix_byte(&self.kp_type);
 
@@ -209,7 +232,7 @@ impl KeyPair {
             Ok(KeyPair {
                 kp_type: KeyPairType::from(prefix),
                 pk,
-                rawkey: RawKeyType::Public,
+                rawkey_kind: RawKeyKind::Public,
             })
         }
     }
@@ -242,7 +265,7 @@ impl KeyPair {
             Ok(KeyPair {
                 kp_type,
                 pk: pk_from_seed(&seed),
-                rawkey: RawKeyType::Seed(seed),
+                rawkey_kind: RawKeyKind::Seed(seed),
             })
         }
     }
