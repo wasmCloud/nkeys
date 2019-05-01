@@ -52,16 +52,18 @@ const PREFIX_BYTE_PRIVATE: u8 = 15 << 3;
 const PREFIX_BYTE_SERVER: u8 = 13 << 3;
 const PREFIX_BYTE_CLUSTER: u8 = 2 << 3;
 const PREFIX_BYTE_OPERATOR: u8 = 14 << 3;
+const PREFIX_BYTE_MODULE: u8 = 12 << 3;
 const PREFIX_BYTE_ACCOUNT: u8 = 0;
 const PREFIX_BYTE_USER: u8 = 20 << 3;
 const PREFIX_BYTE_UNKNOWN: u8 = 23 << 3;
 
-const PUBLIC_KEY_PREFIXES: [u8; 5] = [
+const PUBLIC_KEY_PREFIXES: [u8; 6] = [
     PREFIX_BYTE_ACCOUNT,
     PREFIX_BYTE_CLUSTER,
     PREFIX_BYTE_OPERATOR,
     PREFIX_BYTE_SERVER,
     PREFIX_BYTE_USER,
+    PREFIX_BYTE_MODULE,
 ];
 
 type Result<T> = std::result::Result<T, crate::error::Error>;
@@ -107,6 +109,7 @@ enum KeyPairType {
     Operator,
     Account,
     User,
+    Module,
 }
 
 impl From<u8> for KeyPairType {
@@ -117,6 +120,7 @@ impl From<u8> for KeyPairType {
             PREFIX_BYTE_OPERATOR => KeyPairType::Operator,
             PREFIX_BYTE_ACCOUNT => KeyPairType::Account,
             PREFIX_BYTE_USER => KeyPairType::User,
+            PREFIX_BYTE_MODULE => KeyPairType::Module,
             _ => KeyPairType::Operator,
         }
     }
@@ -155,6 +159,11 @@ impl KeyPair {
     /// Creates a new server key pair with a seed that has the **N** prefix
     pub fn new_server() -> KeyPair {
         Self::new(KeyPairType::Server)
+    }
+
+    // Creates a new module (e.g. WebAssembly) key pair with a seed that has the **M** prefix
+    pub fn new_module() -> KeyPair {
+        Self::new(KeyPairType::Module)
     }
 
     /// Returns the encoded public key of this key pair
@@ -303,6 +312,7 @@ fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
         KeyPairType::Cluster => PREFIX_BYTE_CLUSTER,
         KeyPairType::Operator => PREFIX_BYTE_OPERATOR,
         KeyPairType::User => PREFIX_BYTE_USER,
+        KeyPairType::Module => PREFIX_BYTE_MODULE,
     }
 }
 
@@ -416,6 +426,13 @@ mod tests {
             pk,
             "ACODERUVFFAWZQDSS6SBIACUA5O6SXF7HJ3YTYXBALHZP3P7R4BUO4J2"
         );
+    }
+
+    #[test]
+    fn module_has_proper_prefix() {
+        let module = KeyPair::new_module();
+        assert!(module.seed().unwrap().starts_with("SM"));
+        assert!(module.public_key().starts_with("M"));
     }
 }
 
