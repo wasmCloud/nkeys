@@ -161,7 +161,7 @@ impl KeyPair {
         Self::new(KeyPairType::Server)
     }
 
-    // Creates a new module (e.g. WebAssembly) key pair with a seed that has the **M** prefix
+    /// Creates a new module (e.g. WebAssembly) key pair with a seed that has the **M** prefix
     pub fn new_module() -> KeyPair {
         Self::new(KeyPairType::Module)
     }
