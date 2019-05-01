@@ -1,6 +1,6 @@
 [package]
 name = "nkeys"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Kevin Hoffman <alothien@gmail.com>"]
 edition = "2018"
 description = "Rust implementation of the NATS nkeys library"
