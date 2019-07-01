@@ -103,13 +103,34 @@ impl Debug for RawKeyKind {
 }
 
 #[derive(Debug, Clone)]
-enum KeyPairType {
+pub enum KeyPairType {
     Server,
     Cluster,
     Operator,
     Account,
     User,
     Module,
+}
+
+impl std::str::FromStr for KeyPairType {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+        let tgt = s.to_uppercase();
+
+        match tgt.as_ref() {
+            "SERVER" => Ok(KeyPairType::Server),
+            "CLUSTER" => Ok(KeyPairType::Cluster),
+            "OPERATOR" => Ok(KeyPairType::Operator),
+            "ACCOUNT" => Ok(KeyPairType::Account),
+            "USER" => Ok(KeyPairType::User),
+            "MODULE" => Ok(KeyPairType::Module),
+            _ => Err(crate::error::Error::new(
+                crate::error::ErrorKind::IncorrectKeyType,
+                Some("Unknown keypair type"),
+            )),
+        }
+    }
 }
 
 impl From<u8> for KeyPairType {
@@ -127,7 +148,7 @@ impl From<u8> for KeyPairType {
 }
 
 impl KeyPair {
-    fn new(kp_type: KeyPairType) -> KeyPair {
+    pub fn new(kp_type: KeyPairType) -> KeyPair {
         let s = create_seed();
         KeyPair {
             kp_type: kp_type,
