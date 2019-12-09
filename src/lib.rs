@@ -40,7 +40,9 @@
 use crc::{extract_crc, push_crc, valid_checksum};
 use rand::prelude::*;
 use signatory::ed25519;
-use signatory::{Ed25519PublicKey, Signature};
+use signatory::ed25519::PublicKey;
+use signatory::public_key::PublicKeyed;
+use signatory::signature::{Signature, Signer, Verifier};
 use signatory_dalek::{Ed25519Signer, Ed25519Verifier};
 use std::fmt;
 use std::fmt::Debug;
@@ -74,7 +76,7 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 pub struct KeyPair {
     kp_type: KeyPairType,
     rawkey_kind: RawKeyKind,
-    pk: Ed25519PublicKey,
+    pk: ed25519::PublicKey,
 }
 
 impl Debug for KeyPair {
@@ -151,7 +153,7 @@ impl KeyPair {
     pub fn new(kp_type: KeyPairType) -> KeyPair {
         let s = create_seed();
         KeyPair {
-            kp_type: kp_type,
+            kp_type,
             pk: pk_from_seed(&s),
             rawkey_kind: RawKeyKind::Seed(s),
         }
@@ -203,8 +205,9 @@ impl KeyPair {
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
         if let RawKeyKind::Seed(ref seed) = self.rawkey_kind {
             let signer = Ed25519Signer::from(seed);
-            let sig = ed25519::sign(&signer, input)?;
-            Ok(sig.into_vec())
+            //let sig = signatory::ed25519::sign(&signer, input)?;
+            let sig = signer.sign(input);
+            Ok(sig.as_slice().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
         }
@@ -217,7 +220,7 @@ impl KeyPair {
         fixedsig.copy_from_slice(sig);
         let insig = ed25519::Signature::new(fixedsig);
 
-        match ed25519::verify(&verifier, input, &insig) {
+        match verifier.verify(input, &insig) {
             Ok(()) => Ok(()),
             Err(e) => Err(e.into()),
         }
@@ -258,12 +261,14 @@ impl KeyPair {
             ))
         } else {
             raw.remove(0);
-            let pk = Ed25519PublicKey::from_bytes(raw)?;
-            Ok(KeyPair {
-                kp_type: KeyPairType::from(prefix),
-                pk,
-                rawkey_kind: RawKeyKind::Public,
-            })
+            match PublicKey::from_bytes(raw) {
+                Some(pk) => Ok(KeyPair {
+                    kp_type: KeyPairType::from(prefix),
+                    pk,
+                    rawkey_kind: RawKeyKind::Public,
+                }),
+                None => Err(err!(VerifyError, "Could not read public key")),
+            }
         }
     }
 
@@ -301,10 +306,9 @@ impl KeyPair {
     }
 }
 
-fn pk_from_seed(seed: &ed25519::Seed) -> Ed25519PublicKey {
+fn pk_from_seed(seed: &ed25519::Seed) -> PublicKey {
     let signer = Ed25519Signer::from(seed);
-    let pk: Ed25519PublicKey = ed25519::public_key(&signer).unwrap();
-    pk
+    signer.public_key().unwrap()
 }
 
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
@@ -419,9 +423,9 @@ mod tests {
     #[test]
     fn sign_and_verify() {
         let user = KeyPair::new_user();
-        let msg = "this is super secret".as_bytes();
+        let msg = b"this is super secret";
 
-        let sig = user.sign(&msg).unwrap();
+        let sig = user.sign(msg).unwrap();
 
         let res = user.verify(msg, sig.as_slice());
         assert!(res.is_ok());
@@ -430,10 +434,10 @@ mod tests {
     #[test]
     fn sign_and_verify_rejects_mismatched_sig() {
         let user = KeyPair::new_user();
-        let msg = "this is super secret".as_bytes();
+        let msg = b"this is super secret";
 
-        let sig = user.sign(&msg).unwrap();
-        let res = user.verify("this doesn't match the message".as_bytes(), sig.as_slice());
+        let sig = user.sign(msg).unwrap();
+        let res = user.verify(b"this doesn't match the message", sig.as_slice());
         assert!(res.is_err());
     }
 
@@ -453,7 +457,7 @@ mod tests {
     fn module_has_proper_prefix() {
         let module = KeyPair::new_module();
         assert!(module.seed().unwrap().starts_with("SM"));
-        assert!(module.public_key().starts_with("M"));
+        assert!(module.public_key().starts_with('M'));
     }
 }
 

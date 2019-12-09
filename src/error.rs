@@ -8,6 +8,7 @@
 #![allow(unused_macros)]
 
 use core::fmt;
+use signatory::signature;
 
 use std::{
     error::Error as StdError,
@@ -57,7 +58,7 @@ macro_rules! err {
 }
 
 impl ErrorKind {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             ErrorKind::InvalidPrefix => "Invalid byte prefix",
             ErrorKind::InvalidSeedLength => "Invalid seed length",
@@ -94,8 +95,8 @@ impl Error {
 }
 
 /// Creates an nkeys error derived from an error that came from the `signatory` crate
-impl From<signatory::error::Error> for Error {
-    fn from(source: signatory::error::Error) -> Error {
+impl From<signature::Error> for Error {
+    fn from(source: signature::Error) -> Error {
         err!(SignatureError, &format!("Signature error: {}", source))
     }
 }

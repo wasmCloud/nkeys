@@ -1,10 +1,10 @@
-use nkeys::{self, KeyPairType, KeyPair};
+use nkeys::{self, KeyPair, KeyPairType};
 use structopt::StructOpt;
-
+use structopt::clap::AppSettings;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(
-    raw(setting = "structopt::clap::AppSettings::ColoredHelp"),
+    global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands]),
     name = "nk",
     about = "A tool for manipulating nkeys"
 )]
@@ -16,11 +16,11 @@ struct Cli {
 #[derive(StructOpt, Debug, Clone)]
 enum Command {
     #[structopt(name = "gen", about = "Generates a key pair")]
-    Gen {    
+    Gen {
         /// The type of key pair to generate. May be Account, User, Module, Server, Operator, Cluster         
         #[structopt(case_insensitive = true)]
         keytype: KeyPairType,
-    }            
+    },
 }
 
 fn main() {
@@ -29,7 +29,7 @@ fn main() {
     env_logger::init();
 
     match cmd {
-        Command::Gen { keytype }=> {
+        Command::Gen { keytype } => {
             generate(keytype);
         }
     }
@@ -37,7 +37,9 @@ fn main() {
 
 fn generate(kt: &KeyPairType) {
     let kp = KeyPair::new(kt.clone());
-    println!("Public Key: {}\nSeed: {}\n\nRemember that the seed is private, treat it as a secret.",
+    println!(
+        "Public Key: {}\nSeed: {}\n\nRemember that the seed is private, treat it as a secret.",
         kp.public_key(),
-        kp.seed().unwrap());
+        kp.seed().unwrap()
+    );
 }
