@@ -11,28 +11,26 @@
 //! ```
 //! use nkeys::KeyPair;
 //!
-//! fn main() {
-//!     // Create a user key pair
-//!     let user = KeyPair::new_user();
+//! // Create a user key pair
+//! let user = KeyPair::new_user();
 //!
-//!     // Sign some data with the user's full key pair
-//!     let msg = "this is super secret".as_bytes();
-//!     let sig = user.sign(&msg).unwrap();
-//!     let res = user.verify(msg, sig.as_slice());
-//!     assert!(res.is_ok());
+//! // Sign some data with the user's full key pair
+//! let msg = "this is super secret".as_bytes();
+//! let sig = user.sign(&msg).unwrap();
+//! let res = user.verify(msg, sig.as_slice());
+//! assert!(res.is_ok());
 //!
-//!     // Access the encoded seed (the information that needs to be kept safe/secret)
-//!     let seed = user.seed().unwrap();
-//!     // Access the public key, which can be safely shared
-//!     let pk = user.public_key();
+//! // Access the encoded seed (the information that needs to be kept safe/secret)
+//! let seed = user.seed().unwrap();
+//! // Access the public key, which can be safely shared
+//! let pk = user.public_key();
 //!
-//!     // Create a full User who can sign and verify from a private seed.
-//!     let user = KeyPair::from_seed(&seed);
+//! // Create a full User who can sign and verify from a private seed.
+//! let user = KeyPair::from_seed(&seed);
 //!
-//!     // Create a user that can only verify and not sign
-//!     let user = KeyPair::from_public_key(&pk).unwrap();
-//!     assert!(user.seed().is_err());
-//! }
+//! // Create a user that can only verify and not sign
+//! let user = KeyPair::from_public_key(&pk).unwrap();
+//! assert!(user.seed().is_err());
 //! ```
 
 #![allow(dead_code)]
