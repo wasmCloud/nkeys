@@ -42,7 +42,7 @@ use rand::prelude::*;
 use signatory::ed25519;
 use signatory::ed25519::PublicKey;
 use signatory::public_key::PublicKeyed;
-use signatory::signature::{Signature, Signer, Verifier};
+use signatory::signature::{Signer, Verifier};
 use signatory_dalek::{Ed25519Signer, Ed25519Verifier};
 use std::fmt;
 use std::fmt::Debug;
@@ -207,7 +207,7 @@ impl KeyPair {
             let signer = Ed25519Signer::from(seed);
             //let sig = signatory::ed25519::sign(&signer, input)?;
             let sig = signer.sign(input);
-            Ok(sig.as_slice().to_vec())
+            Ok(sig.to_bytes().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
         }
