@@ -121,8 +121,8 @@ impl StdError for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.description {
-            Some(ref desc) => write!(f, "{}: {}", self.description(), desc),
-            None => write!(f, "{}", self.description()),
+            Some(ref desc) => write!(f, "{}: {}", self.to_string(), desc),
+            None => write!(f, "{}", self.to_string()),
         }
     }
 }
