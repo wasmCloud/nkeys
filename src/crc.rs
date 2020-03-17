@@ -30,7 +30,7 @@ pub(crate) fn crc16(data: &[u8]) -> u16 {
     let mut crc = 0_u16;
     for b in data {
         let idx = ((crc >> 8) ^ *b as u16) & 0x00FF;
-        crc = ((crc << 8) & 0xFFFF) ^ CRC_TABLE[idx as usize];
+        crc = (crc << 8) ^ CRC_TABLE[idx as usize];
     }
     crc
 }
