@@ -23,10 +23,8 @@ name = "nk"
 required-features = ["cli"]
 
 [dependencies]
-signatory = "0.18.1"
-signatory-dalek = "0.18.1"
-ed25519-dalek = { version = "1.0.0-pre.2", features = ["std"] }
-
+signatory = "0.20" 
+signatory-dalek = "0.20"
 rand = "0.7.3"
 byteorder = "1.3.4"
 data-encoding = "2.2.0"
