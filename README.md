@@ -4,7 +4,7 @@
 
 Rust implementation of the [NATS nkeys](https://github.com/nats-io/nkeys) Go library.
 
-The NATS ecosystem will be moving to Ed25519 keys for identity, authentication and authorization for entities such as Accounts, Users, Servers and Clusters.
+The NATS ecosystem as of v2.x+ moved to Ed25519 keys for identity, authentication and authorization for entities such as Accounts, Users, Servers and Clusters.
 
 Ed25519 is fast and resistant to side channel attacks. Generation of a seed key is all that is needed to be stored and kept safe, as the seed can generate both the public and private keys.
 
@@ -20,6 +20,7 @@ The following is a list of available prefixes and their keypair types:
 * **A** - Account
 * **U** - User
 * **M** - Module
+* **V** - Service / Service Provider
 * **P** - Private Key
 
 For seeds, the first encoded prefix is **S**, and the second character will be the type for the public key, e.g. `SU` is a seed for a user key pair, `SA` is a seed for an account key pair.

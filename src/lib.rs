@@ -1,11 +1,9 @@
 //! # nkeys
 //!
 //! The `nkeys` is a Rust port of the official NATS [Go](https://github.com/nats-io/nkeys) nkeys implementation.
-//! While it is a port, every effort has been made to make this library feel like idiomatic Rust and to do things
-//! in a "rusty" way.
 //!
 //! Nkeys provides library functions to create ed25519 keys using the special prefix encoding system used by
-//! NATS 2.0+ security
+//! NATS 2.0+ security.
 //!
 //! # Examples
 //! ```
@@ -32,16 +30,24 @@
 //! let user = KeyPair::from_public_key(&pk).unwrap();
 //! assert!(user.seed().is_err());
 //! ```
+//!
+//! # Notes
+//! The following is a list of the valid prefixes / key pair types available. Note that there are more
+//! key pair types available in this crate than there are in the original Go implementation for NATS.
+//! * **N** - Server
+//! * **C** - Cluster
+//! * **O** - Operator
+//! * **A** - Account
+//! * **U** - User
+//! * **M** - Module
+//! * **V** - Service / Service Provider
+//! * **P** - Private Key
 
 #![allow(dead_code)]
 
 use crc::{extract_crc, push_crc, valid_checksum};
+use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey, Signature, Verifier};
 use rand::prelude::*;
-use signatory::ed25519;
-use signatory::ed25519::PublicKey;
-use signatory::public_key::PublicKeyed;
-use signatory::signature::{Signer, Verifier};
-use signatory_dalek::{Ed25519Signer, Ed25519Verifier};
 use std::fmt;
 use std::fmt::Debug;
 
@@ -55,61 +61,53 @@ const PREFIX_BYTE_OPERATOR: u8 = 14 << 3;
 const PREFIX_BYTE_MODULE: u8 = 12 << 3;
 const PREFIX_BYTE_ACCOUNT: u8 = 0;
 const PREFIX_BYTE_USER: u8 = 20 << 3;
+const PREFIX_BYTE_SERVICE: u8 = 21 << 3;
 const PREFIX_BYTE_UNKNOWN: u8 = 23 << 3;
 
-const PUBLIC_KEY_PREFIXES: [u8; 6] = [
+const PUBLIC_KEY_PREFIXES: [u8; 7] = [
     PREFIX_BYTE_ACCOUNT,
     PREFIX_BYTE_CLUSTER,
     PREFIX_BYTE_OPERATOR,
     PREFIX_BYTE_SERVER,
     PREFIX_BYTE_USER,
     PREFIX_BYTE_MODULE,
+    PREFIX_BYTE_SERVICE,
 ];
 
 type Result<T> = std::result::Result<T, crate::error::Error>;
 
 /// The main interface used for reading and writing _nkey-encoded_ key pairs, including
-/// seeds and public keys.
-#[derive(Clone)]
+/// seeds and public keys. Instances of this type cannot be cloned.
 pub struct KeyPair {
     kp_type: KeyPairType,
-    rawkey_kind: RawKeyKind,
-    pk: ed25519::PublicKey,
+    sk: Option<SecretKey>, //rawkey_kind: RawKeyKind,
+    pk: PublicKey,
 }
 
 impl Debug for KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "KeyPair {{ kp_type: {:?}, rawkey_kind: {:?}, pk: (hidden) }}",
-            self.kp_type, self.rawkey_kind
-        )
+        write!(f, "KeyPair ({:?})", self.kp_type)
     }
 }
 
-#[derive(Clone)]
-enum RawKeyKind {
-    Seed(ed25519::Seed),
-    Public,
-}
-
-impl Debug for RawKeyKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            RawKeyKind::Public => write!(f, "Public"),
-            RawKeyKind::Seed(_) => write!(f, "Seed"),
-        }
-    }
-}
-
+/// The authoritative list of valid key pair types that are used for cryptographically secure
+/// identities
 #[derive(Debug, Clone)]
 pub enum KeyPairType {
+    /// A server identity
     Server,
+    /// A cluster (group of servers) identity
     Cluster,
+    /// An operator (vouches for accounts) identity
     Operator,
+    /// An account (vouches for users) identity
     Account,
+    /// A user identity
     User,
+    /// A module identity - can represent an opaque component, etc.
     Module,
+    /// A service / service provider identity
+    Service,
 }
 
 impl std::str::FromStr for KeyPairType {
@@ -124,11 +122,9 @@ impl std::str::FromStr for KeyPairType {
             "OPERATOR" => Ok(KeyPairType::Operator),
             "ACCOUNT" => Ok(KeyPairType::Account),
             "USER" => Ok(KeyPairType::User),
+            "SERVICE" => Ok(KeyPairType::Service),
             "MODULE" => Ok(KeyPairType::Module),
-            _ => Err(crate::error::Error::new(
-                crate::error::ErrorKind::IncorrectKeyType,
-                Some("Unknown keypair type"),
-            )),
+            _ => Ok(KeyPairType::Module), // Do not crash the app if user input was wrong
         }
     }
 }
@@ -142,18 +138,21 @@ impl From<u8> for KeyPairType {
             PREFIX_BYTE_ACCOUNT => KeyPairType::Account,
             PREFIX_BYTE_USER => KeyPairType::User,
             PREFIX_BYTE_MODULE => KeyPairType::Module,
+            PREFIX_BYTE_SERVICE => KeyPairType::Service,
             _ => KeyPairType::Operator,
         }
     }
 }
 
 impl KeyPair {
+    /// Creates a new key pair of the given type
     pub fn new(kp_type: KeyPairType) -> KeyPair {
-        let s = create_seed();
+        // If this unwrap fails, then the library is invalid, so the unwrap is OK here
+        let s = create_seed().unwrap();
         KeyPair {
             kp_type,
             pk: pk_from_seed(&s),
-            rawkey_kind: RawKeyKind::Seed(s),
+            sk: Some(s),
         }
     }
 
@@ -187,7 +186,12 @@ impl KeyPair {
         Self::new(KeyPairType::Module)
     }
 
-    /// Returns the encoded public key of this key pair
+    /// Creates a new service / service provider key pair with a seed that has the **V** prefix
+    pub fn new_service() -> KeyPair {
+        Self::new(KeyPairType::Service)
+    }
+
+    /// Returns the encoded, human-readable public key of this key pair
     pub fn public_key(&self) -> String {
         let mut raw = vec![];
 
@@ -201,10 +205,9 @@ impl KeyPair {
 
     /// Attempts to sign the given input with the key pair's seed
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
-        if let RawKeyKind::Seed(ref seed) = self.rawkey_kind {
-            let signer = Ed25519Signer::from(seed);
-            //let sig = signatory::ed25519::sign(&signer, input)?;
-            let sig = signer.sign(input);
+        if let Some(ref seed) = self.sk {
+            let expanded: ExpandedSecretKey = seed.into();
+            let sig: Signature = expanded.sign(input, &self.pk);
             Ok(sig.to_bytes().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
@@ -213,21 +216,21 @@ impl KeyPair {
 
     /// Attempts to verify that the given signature is valid for the given input
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
-        let verifier = Ed25519Verifier::from(&self.pk);
-        let mut fixedsig = [0; ed25519::SIGNATURE_SIZE];
+        let mut fixedsig = [0; ed25519_dalek::ed25519::SIGNATURE_LENGTH];
         fixedsig.copy_from_slice(sig);
-        let insig = ed25519::Signature::new(fixedsig);
+        let insig = ed25519_dalek::Signature::new(fixedsig);
 
-        match verifier.verify(input, &insig) {
+        match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
             Err(e) => Err(e.into()),
         }
     }
 
-    /// Attempts to return the encoded string for this key pair's seed. Remember that this
-    /// value should be treated as a secret
+    /// Attempts to return the encoded, human-readable string for this key pair's seed.
+    /// Remember that this value should be treated as a secret. Do not store it for
+    /// any longer than necessary
     pub fn seed(&self) -> Result<String> {
-        if let RawKeyKind::Seed(ref seed) = self.rawkey_kind {
+        if let Some(ref seed) = self.sk {
             let mut raw = vec![];
             let prefix_byte = get_prefix_byte(&self.kp_type);
 
@@ -236,7 +239,7 @@ impl KeyPair {
 
             raw.push(b1);
             raw.push(b2);
-            raw.extend(seed.as_secret_slice().iter());
+            raw.extend(seed.as_bytes().iter());
             push_crc(&mut raw);
 
             Ok(data_encoding::BASE32_NOPAD.encode(&raw[..]))
@@ -245,7 +248,7 @@ impl KeyPair {
         }
     }
 
-    /// Attempts to produce a public-only key pair from the given encoded string
+    /// Attempts to produce a public-only key pair from the given encoded public key string
     pub fn from_public_key(source: &str) -> Result<KeyPair> {
         let source_bytes = source.as_bytes();
         let mut raw = decode_raw(source_bytes)?;
@@ -259,13 +262,13 @@ impl KeyPair {
             ))
         } else {
             raw.remove(0);
-            match PublicKey::from_bytes(raw) {
-                Some(pk) => Ok(KeyPair {
+            match PublicKey::from_bytes(&raw) {
+                Ok(pk) => Ok(KeyPair {
                     kp_type: KeyPairType::from(prefix),
                     pk,
-                    rawkey_kind: RawKeyKind::Public,
+                    sk: None,
                 }),
-                None => Err(err!(VerifyError, "Could not read public key")),
+                Err(_) => Err(err!(VerifyError, "Could not read public key")),
             }
         }
     }
@@ -293,20 +296,19 @@ impl KeyPair {
             let kp_type = KeyPairType::from(b2);
             let mut seed_bytes = [0u8; 32];
             seed_bytes.copy_from_slice(&raw[2..]);
-            let seed = ed25519::Seed::new(seed_bytes);
+            let seed = SecretKey::from_bytes(&seed_bytes[..])?;
 
             Ok(KeyPair {
                 kp_type,
                 pk: pk_from_seed(&seed),
-                rawkey_kind: RawKeyKind::Seed(seed),
+                sk: Some(seed),
             })
         }
     }
 }
 
-fn pk_from_seed(seed: &ed25519::Seed) -> PublicKey {
-    let signer = Ed25519Signer::from(seed);
-    signer.public_key().unwrap()
+fn pk_from_seed(seed: &SecretKey) -> PublicKey {
+    seed.into()
 }
 
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
@@ -321,11 +323,11 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-fn create_seed() -> ed25519::Seed {
+fn create_seed() -> Result<SecretKey> {
     let mut rng = rand::thread_rng();
     let rnd_bytes = rng.gen::<[u8; 32]>();
 
-    ed25519::Seed::new(rnd_bytes)
+    SecretKey::from_bytes(&rnd_bytes[..]).map_err(|e| e.into())
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
@@ -336,6 +338,7 @@ fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
         KeyPairType::Operator => PREFIX_BYTE_OPERATOR,
         KeyPairType::User => PREFIX_BYTE_USER,
         KeyPairType::Module => PREFIX_BYTE_MODULE,
+        KeyPairType::Service => PREFIX_BYTE_SERVICE,
     }
 }
 
@@ -456,6 +459,13 @@ mod tests {
         let module = KeyPair::new_module();
         assert!(module.seed().unwrap().starts_with("SM"));
         assert!(module.public_key().starts_with('M'));
+    }
+
+    #[test]
+    fn service_has_proper_prefix() {
+        let service = KeyPair::new_service();
+        assert!(service.seed().unwrap().starts_with("SV"));
+        assert!(service.public_key().starts_with('V'));
     }
 }
 
