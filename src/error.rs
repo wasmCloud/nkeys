@@ -121,8 +121,17 @@ impl StdError for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.description {
-            Some(ref desc) => write!(f, "{}: {}", self.to_string(), desc),
-            None => write!(f, "{}", self.to_string()),
+            Some(ref desc) => write!(f, "{}: {}", self.kind.as_str(), desc),
+            None => write!(f, "{}", self.kind.as_str()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_error_to_string() {
+        assert_eq!(err!(InvalidSeedLength, "Testing").to_string(), "Invalid seed length: Testing");
+        assert_eq!(err!(InvalidSeedLength, "Testing {}", 1).to_string(), "Invalid seed length: Testing 1");
     }
 }
