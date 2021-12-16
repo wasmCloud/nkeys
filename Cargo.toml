@@ -1,8 +1,8 @@
 [package]
 name = "nkeys"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kevin Hoffman <alothien@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Rust implementation of the NATS nkeys library"
 license = "Apache-2.0"
 homepage = "https://github.com/encabulators/nkeys"
@@ -23,9 +23,9 @@ name = "nk"
 required-features = ["cli"]
 
 [dependencies]
-signatory = "0.21"
+signatory = "0.23"
 ed25519-dalek = { version = "1.0.1", default-features = false, features = ["u64_backend"] }
-rand = "0.7.3"
+rand = "0.8"
 byteorder = "1.3.4"
 data-encoding = "2.3.0"
 log = "0.4.11"
@@ -35,5 +35,10 @@ quicli = { version = "0.4", optional = true }
 structopt = { version = "0.3.17", optional = true }
 term-table = { version = "1.3.0", optional = true }
 exitfailure = { version = "0.5.1", optional =true }
-env_logger = { version = "0.7.1", optional = true }
+env_logger = { version = "0.9", optional = true }
 serde_json = { version = "1.0", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# DIRTY HACK WARNING: We don't actually use this, but if we don't specify custom, things die because
+# wasm32-unknown-unknown isn't supported
+getrandom = { version = "0.2", default-features = false, features = ["custom"] }

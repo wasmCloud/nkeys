@@ -45,11 +45,11 @@
 
 #![allow(dead_code)]
 
+use std::fmt::{self, Debug};
+
 use crc::{extract_crc, push_crc, valid_checksum};
 use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey, Signature, Verifier};
 use rand::prelude::*;
-use std::fmt;
-use std::fmt::Debug;
 
 const ENCODED_SEED_LENGTH: usize = 58;
 
@@ -145,57 +145,95 @@ impl From<u8> for KeyPairType {
 }
 
 impl KeyPair {
-    /// Creates a new key pair of the given type
+    /// Creates a new key pair of the given type.
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(kp_type: KeyPairType) -> KeyPair {
         // If this unwrap fails, then the library is invalid, so the unwrap is OK here
-        let s = create_seed().unwrap();
-        KeyPair {
+        Self::new_from_raw(kp_type, generate_seed_rand()).unwrap()
+    }
+
+    /// Create a new keypair using a pre-existing set of random bytes.
+    ///
+    /// Returns an error if there is an issue using the bytes to generate the key
+    /// NOTE: These bytes should be generated from a cryptographically secure random source.
+    pub fn new_from_raw(kp_type: KeyPairType, random_bytes: [u8; 32]) -> Result<KeyPair> {
+        let s = create_seed(random_bytes)?;
+        Ok(KeyPair {
             kp_type,
             pk: pk_from_seed(&s),
             sk: Some(s),
-        }
+        })
     }
 
     /// Creates a new user key pair with a seed that has a **U** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_user() -> KeyPair {
         Self::new(KeyPairType::User)
     }
 
     /// Creates a new account key pair with a seed that has an **A** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_account() -> KeyPair {
         Self::new(KeyPairType::Account)
     }
 
     /// Creates a new operator key pair with a seed that has an **O** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_operator() -> KeyPair {
         Self::new(KeyPairType::Operator)
     }
 
     /// Creates a new cluster key pair with a seed that has the **C** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_cluster() -> KeyPair {
         Self::new(KeyPairType::Cluster)
     }
 
     /// Creates a new server key pair with a seed that has the **N** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_server() -> KeyPair {
         Self::new(KeyPairType::Server)
     }
 
     /// Creates a new module (e.g. WebAssembly) key pair with a seed that has the **M** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_module() -> KeyPair {
         Self::new(KeyPairType::Module)
     }
 
     /// Creates a new service / service provider key pair with a seed that has the **V** prefix
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`new_from_raw`](KeyPair::new_from_raw) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_service() -> KeyPair {
         Self::new(KeyPairType::Service)
     }
 
     /// Returns the encoded, human-readable public key of this key pair
     pub fn public_key(&self) -> String {
-        let mut raw = vec![];
-
-        raw.push(get_prefix_byte(&self.kp_type));
+        let mut raw = vec![get_prefix_byte(&self.kp_type)];
 
         raw.extend(self.pk.as_bytes());
 
@@ -216,9 +254,9 @@ impl KeyPair {
 
     /// Attempts to verify that the given signature is valid for the given input
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
-        let mut fixedsig = [0; ed25519_dalek::ed25519::SIGNATURE_LENGTH];
+        let mut fixedsig = [0; ed25519_dalek::Signature::BYTE_SIZE];
         fixedsig.copy_from_slice(sig);
-        let insig = ed25519_dalek::Signature::new(fixedsig);
+        let insig = ed25519_dalek::Signature::from_bytes(&fixedsig)?;
 
         match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
@@ -288,7 +326,7 @@ impl KeyPair {
             Err(err!(
                 InvalidPrefix,
                 "Incorrect byte prefix: {}",
-                source.chars().nth(0).unwrap()
+                source.chars().next().unwrap()
             ))
         } else {
             let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
@@ -323,11 +361,13 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-fn create_seed() -> Result<SecretKey> {
+fn generate_seed_rand() -> [u8; 32] {
     let mut rng = rand::thread_rng();
-    let rnd_bytes = rng.gen::<[u8; 32]>();
+    rng.gen::<[u8; 32]>()
+}
 
-    SecretKey::from_bytes(&rnd_bytes[..]).map_err(|e| e.into())
+fn create_seed(rand_bytes: [u8; 32]) -> Result<SecretKey> {
+    SecretKey::from_bytes(&rand_bytes[..]).map_err(|e| e.into())
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
