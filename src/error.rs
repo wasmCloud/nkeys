@@ -131,7 +131,13 @@ impl fmt::Display for Error {
 mod tests {
     #[test]
     fn test_error_to_string() {
-        assert_eq!(err!(InvalidSeedLength, "Testing").to_string(), "Invalid seed length: Testing");
-        assert_eq!(err!(InvalidSeedLength, "Testing {}", 1).to_string(), "Invalid seed length: Testing 1");
+        assert_eq!(
+            err!(InvalidSeedLength, "Testing").to_string(),
+            "Invalid seed length: Testing"
+        );
+        assert_eq!(
+            err!(InvalidSeedLength, "Testing {}", 1).to_string(),
+            "Invalid seed length: Testing 1"
+        );
     }
 }
