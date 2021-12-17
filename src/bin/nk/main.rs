@@ -39,7 +39,7 @@ enum Command {
 #[derive(StructOpt, Debug, Clone)]
 enum Output {
     Text,
-    JSON,
+    Json,
 }
 
 impl FromStr for Output {
@@ -47,7 +47,7 @@ impl FromStr for Output {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "json" => Ok(Output::JSON),
+            "json" => Ok(Output::Json),
             "text" => Ok(Output::Text),
             _ => Err(OutputParseErr),
         }
@@ -63,7 +63,6 @@ impl fmt::Display for OutputParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}",
             "error parsing output type, see help for the list of accepted outputs"
         )
     }
@@ -91,7 +90,7 @@ fn generate(kt: &KeyPairType, output_type: &Output) {
                 kp.seed().unwrap()
             );
         }
-        Output::JSON => {
+        Output::Json => {
             let output = json!({
                 "public_key": kp.public_key(),
                 "seed": kp.seed().unwrap(),
