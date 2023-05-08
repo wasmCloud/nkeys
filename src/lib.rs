@@ -92,7 +92,7 @@ impl Debug for KeyPair {
 
 /// The authoritative list of valid key pair types that are used for cryptographically secure
 /// identities
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KeyPairType {
     /// A server identity
     Server,
