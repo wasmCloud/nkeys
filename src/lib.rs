@@ -343,6 +343,11 @@ impl KeyPair {
             })
         }
     }
+
+    /// Returns the type of this key pair.
+    pub fn key_pair_type(&self) -> KeyPairType {
+        self.kp_type.clone()
+    }
 }
 
 fn pk_from_seed(seed: &SecretKey) -> PublicKey {
@@ -506,6 +511,29 @@ mod tests {
         let service = KeyPair::new_service();
         assert!(service.seed().unwrap().starts_with("SV"));
         assert!(service.public_key().starts_with('V'));
+    }
+
+    #[test]
+    fn can_get_key_type() {
+        let from_pub =
+            KeyPair::from_public_key("UBCXCMGAZQZN55X5TTTWMB5CZNZIKJHEDZJOJ3TV63NKPJ6FRXSR2ZO4")
+                .unwrap();
+        let from_seed =
+            KeyPair::from_seed("SCANU5JGFEPJ2XNFQ6YMDRHMNFAL6ZT3DCU3ZMMHHML7GLFE3YIH5TBM6E")
+                .unwrap();
+
+        assert!(
+            matches!(from_pub.key_pair_type(), KeyPairType::User),
+            "Expected the key type to be {:?}, found {:?}",
+            KeyPairType::User,
+            from_pub.key_pair_type()
+        );
+        assert!(
+            matches!(from_seed.key_pair_type(), KeyPairType::Cluster),
+            "Expected the key type to be {:?}, found {:?}",
+            KeyPairType::Cluster,
+            from_seed.key_pair_type()
+        );
     }
 }
 
