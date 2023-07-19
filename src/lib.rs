@@ -254,9 +254,9 @@ impl KeyPair {
 
     /// Attempts to verify that the given signature is valid for the given input
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
-        let mut fixedsig = [0; ed25519_dalek::Signature::BYTE_SIZE];
+        let mut fixedsig = [0; ed25519::Signature::BYTE_SIZE];
         fixedsig.copy_from_slice(sig);
-        let insig = ed25519_dalek::Signature::from_bytes(&fixedsig)?;
+        let insig = ed25519::Signature::from_bytes(&fixedsig)?;
 
         match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
