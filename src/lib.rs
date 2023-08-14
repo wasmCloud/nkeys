@@ -160,7 +160,7 @@ impl KeyPair {
     /// Returns an error if there is an issue using the bytes to generate the key
     /// NOTE: These bytes should be generated from a cryptographically secure random source.
     pub fn new_from_raw(kp_type: KeyPairType, random_bytes: [u8; 32]) -> Result<KeyPair> {
-        let s = create_seed(random_bytes)?;
+        let s = random_bytes;
         let pk = pk_from_seed(&s)?;
         Ok(KeyPair {
             kp_type,
@@ -373,10 +373,6 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
 fn generate_seed_rand() -> [u8; 32] {
     let mut rng = rand::thread_rng();
     rng.gen::<[u8; 32]>()
-}
-
-fn create_seed(rand_bytes: [u8; 32]) -> Result<SecretKey> {
-    Ok(rand_bytes)
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
