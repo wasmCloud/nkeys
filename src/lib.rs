@@ -48,7 +48,7 @@
 use std::fmt::{self, Debug};
 
 use crc::{extract_crc, push_crc, valid_checksum};
-use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey, Signature, Verifier};
+use ed25519_dalek::{hazmat::ExpandedSecretKey, SecretKey, Signature, Verifier, VerifyingKey};
 use rand::prelude::*;
 
 const ENCODED_SEED_LENGTH: usize = 58;
@@ -81,7 +81,7 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 pub struct KeyPair {
     kp_type: KeyPairType,
     sk: Option<SecretKey>, //rawkey_kind: RawKeyKind,
-    pk: PublicKey,
+    pk: VerifyingKey,
 }
 
 impl Debug for KeyPair {
@@ -161,9 +161,10 @@ impl KeyPair {
     /// NOTE: These bytes should be generated from a cryptographically secure random source.
     pub fn new_from_raw(kp_type: KeyPairType, random_bytes: [u8; 32]) -> Result<KeyPair> {
         let s = create_seed(random_bytes)?;
+        let pk = pk_from_seed(&s)?;
         Ok(KeyPair {
             kp_type,
-            pk: pk_from_seed(&s),
+            pk,
             sk: Some(s),
         })
     }
@@ -245,7 +246,9 @@ impl KeyPair {
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
         if let Some(ref seed) = self.sk {
             let expanded: ExpandedSecretKey = seed.into();
-            let sig: Signature = expanded.sign(input, &self.pk);
+            let sig: Signature = ed25519_dalek::hazmat::raw_sign::<ed25519_dalek::Sha512>(
+                &expanded, input, &self.pk,
+            );
             Ok(sig.to_bytes().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
@@ -256,7 +259,7 @@ impl KeyPair {
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
         let mut fixedsig = [0; ed25519::Signature::BYTE_SIZE];
         fixedsig.copy_from_slice(sig);
-        let insig = ed25519::Signature::from_bytes(&fixedsig)?;
+        let insig = ed25519::Signature::from_bytes(&fixedsig);
 
         match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
@@ -277,7 +280,7 @@ impl KeyPair {
 
             raw.push(b1);
             raw.push(b2);
-            raw.extend(seed.as_bytes().iter());
+            raw.extend(seed.iter());
             push_crc(&mut raw);
 
             Ok(data_encoding::BASE32_NOPAD.encode(&raw[..]))
@@ -300,7 +303,7 @@ impl KeyPair {
             ))
         } else {
             raw.remove(0);
-            match PublicKey::from_bytes(&raw) {
+            match VerifyingKey::try_from(&raw[..]) {
                 Ok(pk) => Ok(KeyPair {
                     kp_type: KeyPairType::from(prefix),
                     pk,
@@ -332,13 +335,14 @@ impl KeyPair {
             let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
 
             let kp_type = KeyPairType::from(b2);
-            let mut seed_bytes = [0u8; 32];
-            seed_bytes.copy_from_slice(&raw[2..]);
-            let seed = SecretKey::from_bytes(&seed_bytes[..])?;
+            let mut seed = [0u8; 32];
+            seed.copy_from_slice(&raw[2..]);
+
+            let pk = pk_from_seed(&seed)?;
 
             Ok(KeyPair {
                 kp_type,
-                pk: pk_from_seed(&seed),
+                pk,
                 sk: Some(seed),
             })
         }
@@ -350,8 +354,8 @@ impl KeyPair {
     }
 }
 
-fn pk_from_seed(seed: &SecretKey) -> PublicKey {
-    seed.into()
+fn pk_from_seed(seed: &SecretKey) -> Result<VerifyingKey> {
+    VerifyingKey::from_bytes(seed).map_err(|err| err.into())
 }
 
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
@@ -372,7 +376,7 @@ fn generate_seed_rand() -> [u8; 32] {
 }
 
 fn create_seed(rand_bytes: [u8; 32]) -> Result<SecretKey> {
-    SecretKey::from_bytes(&rand_bytes[..]).map_err(|e| e.into())
+    Ok(rand_bytes)
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
