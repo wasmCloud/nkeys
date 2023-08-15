@@ -96,7 +96,7 @@ fn generate(kt: &KeyPairType, output_type: &Output) {
                 "seed": kp.seed().unwrap(),
             });
 
-            println!("{}", output.to_string());
+            println!("{}", output);
         }
     }
 }

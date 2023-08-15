@@ -48,7 +48,7 @@
 use std::fmt::{self, Debug};
 
 use crc::{extract_crc, push_crc, valid_checksum};
-use ed25519_dalek::{hazmat::ExpandedSecretKey, SecretKey, Signature, Verifier, VerifyingKey};
+use ed25519_dalek::{SecretKey, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::prelude::*;
 
 const ENCODED_SEED_LENGTH: usize = 58;
@@ -81,6 +81,7 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 pub struct KeyPair {
     kp_type: KeyPairType,
     sk: Option<SecretKey>, //rawkey_kind: RawKeyKind,
+    signing_key: Option<SigningKey>,
     pk: VerifyingKey,
 }
 
@@ -160,12 +161,12 @@ impl KeyPair {
     /// Returns an error if there is an issue using the bytes to generate the key
     /// NOTE: These bytes should be generated from a cryptographically secure random source.
     pub fn new_from_raw(kp_type: KeyPairType, random_bytes: [u8; 32]) -> Result<KeyPair> {
-        let s = random_bytes;
-        let pk = pk_from_seed(&s)?;
+        let signing_key = SigningKey::from_bytes(&random_bytes);
         Ok(KeyPair {
             kp_type,
-            pk,
-            sk: Some(s),
+            pk: signing_key.verifying_key(),
+            signing_key: Some(signing_key),
+            sk: Some(random_bytes),
         })
     }
 
@@ -244,11 +245,8 @@ impl KeyPair {
 
     /// Attempts to sign the given input with the key pair's seed
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
-        if let Some(ref seed) = self.sk {
-            let expanded: ExpandedSecretKey = seed.into();
-            let sig: Signature = ed25519_dalek::hazmat::raw_sign::<ed25519_dalek::Sha512>(
-                &expanded, input, &self.pk,
-            );
+        if let Some(ref seed) = self.signing_key {
+            let sig = seed.sign(input);
             Ok(sig.to_bytes().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
@@ -308,6 +306,7 @@ impl KeyPair {
                     kp_type: KeyPairType::from(prefix),
                     pk,
                     sk: None,
+                    signing_key: None,
                 }),
                 Err(_) => Err(err!(VerifyError, "Could not read public key")),
             }
@@ -338,12 +337,13 @@ impl KeyPair {
             let mut seed = [0u8; 32];
             seed.copy_from_slice(&raw[2..]);
 
-            let pk = pk_from_seed(&seed)?;
+            let signing_key = SigningKey::from_bytes(&seed);
 
             Ok(KeyPair {
                 kp_type,
-                pk,
+                pk: signing_key.verifying_key(),
                 sk: Some(seed),
+                signing_key: Some(signing_key),
             })
         }
     }
@@ -352,10 +352,6 @@ impl KeyPair {
     pub fn key_pair_type(&self) -> KeyPairType {
         self.kp_type.clone()
     }
-}
-
-fn pk_from_seed(seed: &SecretKey) -> Result<VerifyingKey> {
-    VerifyingKey::from_bytes(seed).map_err(|err| err.into())
 }
 
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
