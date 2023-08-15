@@ -48,7 +48,7 @@
 use std::fmt::{self, Debug};
 
 use crc::{extract_crc, push_crc, valid_checksum};
-use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey, Signature, Verifier};
+use ed25519_dalek::{SecretKey, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::prelude::*;
 
 const ENCODED_SEED_LENGTH: usize = 58;
@@ -81,7 +81,8 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 pub struct KeyPair {
     kp_type: KeyPairType,
     sk: Option<SecretKey>, //rawkey_kind: RawKeyKind,
-    pk: PublicKey,
+    signing_key: Option<SigningKey>,
+    pk: VerifyingKey,
 }
 
 impl Debug for KeyPair {
@@ -160,11 +161,12 @@ impl KeyPair {
     /// Returns an error if there is an issue using the bytes to generate the key
     /// NOTE: These bytes should be generated from a cryptographically secure random source.
     pub fn new_from_raw(kp_type: KeyPairType, random_bytes: [u8; 32]) -> Result<KeyPair> {
-        let s = create_seed(random_bytes)?;
+        let signing_key = SigningKey::from_bytes(&random_bytes);
         Ok(KeyPair {
             kp_type,
-            pk: pk_from_seed(&s),
-            sk: Some(s),
+            pk: signing_key.verifying_key(),
+            signing_key: Some(signing_key),
+            sk: Some(random_bytes),
         })
     }
 
@@ -243,9 +245,8 @@ impl KeyPair {
 
     /// Attempts to sign the given input with the key pair's seed
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>> {
-        if let Some(ref seed) = self.sk {
-            let expanded: ExpandedSecretKey = seed.into();
-            let sig: Signature = expanded.sign(input, &self.pk);
+        if let Some(ref seed) = self.signing_key {
+            let sig = seed.sign(input);
             Ok(sig.to_bytes().to_vec())
         } else {
             Err(err!(SignatureError, "Cannot sign without a seed key"))
@@ -256,7 +257,7 @@ impl KeyPair {
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
         let mut fixedsig = [0; ed25519::Signature::BYTE_SIZE];
         fixedsig.copy_from_slice(sig);
-        let insig = ed25519::Signature::from_bytes(&fixedsig)?;
+        let insig = ed25519::Signature::from_bytes(&fixedsig);
 
         match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
@@ -277,7 +278,7 @@ impl KeyPair {
 
             raw.push(b1);
             raw.push(b2);
-            raw.extend(seed.as_bytes().iter());
+            raw.extend(seed.iter());
             push_crc(&mut raw);
 
             Ok(data_encoding::BASE32_NOPAD.encode(&raw[..]))
@@ -300,11 +301,12 @@ impl KeyPair {
             ))
         } else {
             raw.remove(0);
-            match PublicKey::from_bytes(&raw) {
+            match VerifyingKey::try_from(&raw[..]) {
                 Ok(pk) => Ok(KeyPair {
                     kp_type: KeyPairType::from(prefix),
                     pk,
                     sk: None,
+                    signing_key: None,
                 }),
                 Err(_) => Err(err!(VerifyError, "Could not read public key")),
             }
@@ -332,14 +334,16 @@ impl KeyPair {
             let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
 
             let kp_type = KeyPairType::from(b2);
-            let mut seed_bytes = [0u8; 32];
-            seed_bytes.copy_from_slice(&raw[2..]);
-            let seed = SecretKey::from_bytes(&seed_bytes[..])?;
+            let mut seed = [0u8; 32];
+            seed.copy_from_slice(&raw[2..]);
+
+            let signing_key = SigningKey::from_bytes(&seed);
 
             Ok(KeyPair {
                 kp_type,
-                pk: pk_from_seed(&seed),
+                pk: signing_key.verifying_key(),
                 sk: Some(seed),
+                signing_key: Some(signing_key),
             })
         }
     }
@@ -348,10 +352,6 @@ impl KeyPair {
     pub fn key_pair_type(&self) -> KeyPairType {
         self.kp_type.clone()
     }
-}
-
-fn pk_from_seed(seed: &SecretKey) -> PublicKey {
-    seed.into()
 }
 
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
@@ -369,10 +369,6 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
 fn generate_seed_rand() -> [u8; 32] {
     let mut rng = rand::thread_rng();
     rng.gen::<[u8; 32]>()
-}
-
-fn create_seed(rand_bytes: [u8; 32]) -> Result<SecretKey> {
-    SecretKey::from_bytes(&rand_bytes[..]).map_err(|e| e.into())
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
