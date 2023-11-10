@@ -42,6 +42,7 @@
 //! * **M** - Module
 //! * **V** - Service / Service Provider
 //! * **P** - Private Key
+//! * **X** - Curve Key (X25519)
 
 #![allow(dead_code)]
 
@@ -50,6 +51,12 @@ use std::fmt::{self, Debug};
 use crc::{extract_crc, push_crc, valid_checksum};
 use ed25519_dalek::{SecretKey, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::prelude::*;
+
+#[cfg(feature = "xkeys")]
+mod xkeys;
+
+#[cfg(feature = "xkeys")]
+pub use xkeys::XKey;
 
 const ENCODED_SEED_LENGTH: usize = 58;
 
@@ -62,9 +69,10 @@ const PREFIX_BYTE_MODULE: u8 = 12 << 3;
 const PREFIX_BYTE_ACCOUNT: u8 = 0;
 const PREFIX_BYTE_USER: u8 = 20 << 3;
 const PREFIX_BYTE_SERVICE: u8 = 21 << 3;
-const PREFIX_BYTE_UNKNOWN: u8 = 23 << 3;
+const PREFIX_BYTE_CURVE: u8 = 23 << 3;
+const PREFIX_BYTE_UNKNOWN: u8 = 25 << 3;
 
-const PUBLIC_KEY_PREFIXES: [u8; 7] = [
+const PUBLIC_KEY_PREFIXES: [u8; 8] = [
     PREFIX_BYTE_ACCOUNT,
     PREFIX_BYTE_CLUSTER,
     PREFIX_BYTE_OPERATOR,
@@ -72,6 +80,7 @@ const PUBLIC_KEY_PREFIXES: [u8; 7] = [
     PREFIX_BYTE_USER,
     PREFIX_BYTE_MODULE,
     PREFIX_BYTE_SERVICE,
+    PREFIX_BYTE_CURVE,
 ];
 
 type Result<T> = std::result::Result<T, crate::error::Error>;
@@ -109,6 +118,8 @@ pub enum KeyPairType {
     Module,
     /// A service / service provider identity
     Service,
+    /// CurveKeys (X25519)
+    Curve,
 }
 
 impl std::str::FromStr for KeyPairType {
@@ -125,6 +136,7 @@ impl std::str::FromStr for KeyPairType {
             "USER" => Ok(KeyPairType::User),
             "SERVICE" => Ok(KeyPairType::Service),
             "MODULE" => Ok(KeyPairType::Module),
+            "CURVE" => Ok(KeyPairType::Curve),
             _ => Ok(KeyPairType::Module), // Do not crash the app if user input was wrong
         }
     }
@@ -140,6 +152,7 @@ impl From<u8> for KeyPairType {
             PREFIX_BYTE_USER => KeyPairType::User,
             PREFIX_BYTE_MODULE => KeyPairType::Module,
             PREFIX_BYTE_SERVICE => KeyPairType::Service,
+            PREFIX_BYTE_CURVE => KeyPairType::Curve,
             _ => KeyPairType::Operator,
         }
     }
@@ -235,12 +248,7 @@ impl KeyPair {
 
     /// Returns the encoded, human-readable public key of this key pair
     pub fn public_key(&self) -> String {
-        let mut raw = vec![get_prefix_byte(&self.kp_type)];
-
-        raw.extend(self.pk.as_bytes());
-
-        push_crc(&mut raw);
-        data_encoding::BASE32_NOPAD.encode(&raw[..])
+        encode(&self.kp_type, self.pk.as_bytes())
     }
 
     /// Attempts to sign the given input with the key pair's seed
@@ -270,18 +278,7 @@ impl KeyPair {
     /// any longer than necessary
     pub fn seed(&self) -> Result<String> {
         if let Some(ref seed) = self.sk {
-            let mut raw = vec![];
-            let prefix_byte = get_prefix_byte(&self.kp_type);
-
-            let b1 = PREFIX_BYTE_SEED | prefix_byte >> 5;
-            let b2 = (prefix_byte & 31) << 3;
-
-            raw.push(b1);
-            raw.push(b2);
-            raw.extend(seed.iter());
-            push_crc(&mut raw);
-
-            Ok(data_encoding::BASE32_NOPAD.encode(&raw[..]))
+            Ok(encode_seed(&self.kp_type, seed))
         } else {
             Err(err!(IncorrectKeyType, "This keypair has no seed"))
         }
@@ -380,11 +377,35 @@ fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
         KeyPairType::User => PREFIX_BYTE_USER,
         KeyPairType::Module => PREFIX_BYTE_MODULE,
         KeyPairType::Service => PREFIX_BYTE_SERVICE,
+        KeyPairType::Curve => PREFIX_BYTE_CURVE,
     }
 }
 
 fn valid_public_key_prefix(prefix: u8) -> bool {
     PUBLIC_KEY_PREFIXES.to_vec().contains(&prefix)
+}
+
+fn encode_seed(ty: &KeyPairType, seed: &[u8]) -> String {
+    let prefix_byte = get_prefix_byte(ty);
+
+    let b1 = PREFIX_BYTE_SEED | prefix_byte >> 5;
+    let b2 = (prefix_byte & 31) << 3;
+
+    encode_prefix(&[b1, b2], seed)
+}
+
+fn encode(ty: &KeyPairType, key: &[u8]) -> String {
+    let prefix_byte = get_prefix_byte(ty);
+    encode_prefix(&[prefix_byte], key)
+}
+
+fn encode_prefix(prefix: &[u8], key: &[u8]) -> String {
+    let mut raw = Vec::with_capacity(prefix.len() + key.len() + 2);
+    raw.extend_from_slice(prefix);
+    raw.extend_from_slice(key);
+    push_crc(&mut raw);
+
+    data_encoding::BASE32_NOPAD.encode(&raw[..])
 }
 
 #[cfg(test)]
