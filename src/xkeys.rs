@@ -1,12 +1,12 @@
 use crate::{
-    decode_raw, encode, encode_prefix, encode_seed, err, KeyPairType, ENCODED_SEED_LENGTH,
-    PREFIX_BYTE_CURVE, PREFIX_BYTE_PRIVATE, PREFIX_BYTE_SEED,
+    decode_raw, encode, encode_prefix, encode_seed, err, from_seed, KeyPairType, PREFIX_BYTE_CURVE,
+    PREFIX_BYTE_PRIVATE,
 };
 
 use super::Result;
 use crypto_box::{
     aead::{Aead, AeadCore},
-    SalsaBox,
+    Nonce, SalsaBox,
 };
 use ed25519::signature::digest::typenum::Unsigned;
 use std::fmt::{self, Debug};
@@ -86,34 +86,15 @@ impl XKey {
 
     /// Attempts to produce a full xkey pair from the given encoded seed string
     pub fn from_seed(source: &str) -> Result<Self> {
-        if source.len() != ENCODED_SEED_LENGTH {
-            let l = source.len();
-            return Err(err!(InvalidSeedLength, "Bad seed length: {}", l));
-        }
+        let (ty, seed) = from_seed(source)?;
 
-        let source_bytes = source.as_bytes();
-        let raw = decode_raw(source_bytes)?;
-
-        let b1 = raw[0] & 248;
-        if b1 != PREFIX_BYTE_SEED {
-            return Err(err!(
-                InvalidPrefix,
-                "Incorrect byte prefix: {}",
-                source.chars().next().unwrap()
-            ));
-        }
-
-        let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
-        if b2 != PREFIX_BYTE_CURVE {
+        if ty != PREFIX_BYTE_CURVE {
             return Err(err!(
                 InvalidPrefix,
                 "Expect a cruve, got {:?}",
-                KeyPairType::from(b2)
+                KeyPairType::from(ty)
             ));
         }
-
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&raw[2..]);
 
         let secret = SecretKey::from_bytes(seed);
         Ok(Self {
@@ -175,22 +156,35 @@ impl XKey {
 
     /// Seal is compatible with nacl.Box.Seal() and can be used in similar situations for small
     /// messages. We generate the nonce from crypto rand by default.
+    ///
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`seal_with_nonce`](XKey::seal_with_nonce) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn seal(&self, input: &[u8], recipient: &Self) -> Result<Vec<u8>> {
         self.seal_with_rand(input, recipient, &mut rand::rngs::OsRng)
     }
 
+    /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
+    /// rand support. Use [`seal_with_nonce`](XKey::seal_with_nonce) instead
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn seal_with_rand(
         &self,
         input: &[u8],
         recipient: &Self,
         rand: impl CryptoRng + RngCore,
     ) -> Result<Vec<u8>> {
+        let nonce = SalsaBox::generate_nonce(rand);
+        self.seal_with_nonce(input, recipient, nonce)
+    }
+
+    /// NOTE: Nonce bytes should be generated from a cryptographically secure random source, and
+    /// only be used once.
+    pub fn seal_with_nonce(&self, input: &[u8], recipient: &Self, nonce: Nonce) -> Result<Vec<u8>> {
         let Some(private_key) = &self.secret else {
             return Err(err!(SignatureError, "Cannot seal without a private key"));
         };
 
         let b = SalsaBox::new(&recipient.public, private_key);
-        let nonce = SalsaBox::generate_nonce(rand);
         let crypted = b.encrypt(&nonce, input).unwrap(); // Can't fail
 
         let mut out = Vec::with_capacity(

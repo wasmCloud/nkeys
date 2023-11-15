@@ -312,37 +312,16 @@ impl KeyPair {
 
     /// Attempts to produce a full key pair from the given encoded seed string
     pub fn from_seed(source: &str) -> Result<KeyPair> {
-        if source.len() != ENCODED_SEED_LENGTH {
-            let l = source.len();
-            return Err(err!(InvalidSeedLength, "Bad seed length: {}", l));
-        }
+        let (ty, seed) = from_seed(source)?;
 
-        let source_bytes = source.as_bytes();
-        let raw = decode_raw(source_bytes)?;
+        let signing_key = SigningKey::from_bytes(&seed);
 
-        let b1 = raw[0] & 248;
-        if b1 != PREFIX_BYTE_SEED {
-            Err(err!(
-                InvalidPrefix,
-                "Incorrect byte prefix: {}",
-                source.chars().next().unwrap()
-            ))
-        } else {
-            let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
-
-            let kp_type = KeyPairType::from(b2);
-            let mut seed = [0u8; 32];
-            seed.copy_from_slice(&raw[2..]);
-
-            let signing_key = SigningKey::from_bytes(&seed);
-
-            Ok(KeyPair {
-                kp_type,
-                pk: signing_key.verifying_key(),
-                sk: Some(seed),
-                signing_key: Some(signing_key),
-            })
-        }
+        Ok(KeyPair {
+            kp_type: KeyPairType::from(ty),
+            pk: signing_key.verifying_key(),
+            sk: Some(seed),
+            signing_key: Some(signing_key),
+        })
     }
 
     /// Returns the type of this key pair.
@@ -361,6 +340,33 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
     } else {
         Ok(b32_decoded)
     }
+}
+
+/// Returns the type and the seed
+fn from_seed(source: &str) -> Result<(u8, [u8; 32])> {
+    if source.len() != ENCODED_SEED_LENGTH {
+        let l = source.len();
+        return Err(err!(InvalidSeedLength, "Bad seed length: {}", l));
+    }
+
+    let source_bytes = source.as_bytes();
+    let raw = decode_raw(source_bytes)?;
+
+    let b1 = raw[0] & 248;
+    if b1 != PREFIX_BYTE_SEED {
+        return Err(err!(
+            InvalidPrefix,
+            "Incorrect byte prefix: {}",
+            source.chars().next().unwrap()
+        ));
+    }
+
+    let b2 = (raw[0] & 7) << 5 | ((raw[1] & 248) >> 3);
+
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&raw[2..]);
+
+    Ok((b2, seed))
 }
 
 fn generate_seed_rand() -> [u8; 32] {
