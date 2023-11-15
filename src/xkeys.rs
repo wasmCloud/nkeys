@@ -185,7 +185,9 @@ impl XKey {
         };
 
         let b = SalsaBox::new(&recipient.public, private_key);
-        let crypted = b.encrypt(&nonce, input).unwrap(); // Can't fail
+        let crypted = b
+            .encrypt(&nonce, input)
+            .map_err(|_| err!(SignatureError, "Cannot seal payload"))?; // Can't fail when used with SalsaBox
 
         let mut out = Vec::with_capacity(
             XKEY_VERSION_V1.len()
