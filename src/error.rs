@@ -40,6 +40,8 @@ pub enum ErrorKind {
     CodecFailure,
     /// Indicates a key type mismatch, e.g. attempting to sign with only a public key
     IncorrectKeyType,
+    /// Payload not valid (or failed to be decrypted)
+    InvalidPayload,
 }
 
 /// A handy macro borrowed from the `signatory` crate that lets library-internal code generate
@@ -67,6 +69,7 @@ impl ErrorKind {
             ErrorKind::CodecFailure => "Codec failure",
             ErrorKind::SignatureError => "Signature failure",
             ErrorKind::IncorrectKeyType => "Incorrect key type",
+            ErrorKind::InvalidPayload => "Invalid payload",
         }
     }
 }

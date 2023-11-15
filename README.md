@@ -22,5 +22,6 @@ The following is a list of available prefixes and their keypair types:
 * **M** - Module
 * **V** - Service / Service Provider
 * **P** - Private Key
+* **X** - Curve Key (X25519)
 
 For seeds, the first encoded prefix is **S**, and the second character will be the type for the public key, e.g. `SU` is a seed for a user key pair, `SA` is a seed for an account key pair.
