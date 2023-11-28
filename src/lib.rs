@@ -59,6 +59,7 @@ mod xkeys;
 pub use xkeys::XKey;
 
 const ENCODED_SEED_LENGTH: usize = 58;
+const ENCODED_PUBKEY_LENGTH: usize = 56;
 
 const PREFIX_BYTE_SEED: u8 = 18 << 3;
 const PREFIX_BYTE_PRIVATE: u8 = 15 << 3;
@@ -286,6 +287,11 @@ impl KeyPair {
 
     /// Attempts to produce a public-only key pair from the given encoded public key string
     pub fn from_public_key(source: &str) -> Result<KeyPair> {
+        if source.len() != ENCODED_PUBKEY_LENGTH {
+            let l = source.len();
+            return Err(err!(InvalidKeyLength, "Bad key length: {}", l));
+        }
+
         let source_bytes = source.as_bytes();
         let mut raw = decode_raw(source_bytes)?;
 
@@ -508,6 +514,16 @@ mod tests {
         let sig = user.sign(msg).unwrap();
         let res = user.verify(b"this doesn't match the message", sig.as_slice());
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn from_public_key_rejects_bad_length() {
+        let public_key = "ACARVGW77LDNWYXBAH62YKKQRVHYOTKKDDVVJVOISOU75WQPXOO7N3";
+        let pair = KeyPair::from_public_key(public_key);
+        assert!(pair.is_err());
+        if let Err(e) = pair {
+            assert_eq!(e.kind(), ErrorKind::InvalidKeyLength);
+        }
     }
 
     #[test]
