@@ -1,5 +1,9 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Cursor;
+
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
+use super::error::{Error, ErrorKind};
+use super::Result;
 
 const CRC_TABLE: [u16; 256] = [
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b,
@@ -44,9 +48,23 @@ pub(crate) fn push_crc(data: &mut Vec<u8>) {
     data.write_u16::<LittleEndian>(crc).unwrap();
 }
 
-pub(crate) fn extract_crc(data: &mut Vec<u8>) -> u16 {
-    let crc_bytes = data[..data.len() - 2].to_vec();
+pub(crate) fn extract_crc(data: &mut Vec<u8>) -> Result<u16> {
+    let crc_end_idx = if data.len() >= 2 {
+        data.len() - 2
+    } else {
+        return Err(Error::new(
+            ErrorKind::ChecksumFailure,
+            Some("CRC data vector contains less than two characters"),
+        ));
+    };
+    let crc_bytes = data[..crc_end_idx].to_vec();
+
     let mut reader = Cursor::new(crc_bytes);
-    (*data).truncate(data.len() - 2);
-    reader.read_u16::<LittleEndian>().unwrap()
+    (*data).truncate(crc_end_idx);
+    reader.read_u16::<LittleEndian>().map_err(|e| {
+        Error::new(
+            ErrorKind::ChecksumFailure,
+            Some(format!("failed to read u16: {e}").as_str()),
+        )
+    })
 }

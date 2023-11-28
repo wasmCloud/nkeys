@@ -333,7 +333,7 @@ impl KeyPair {
 fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
     let mut b32_decoded = data_encoding::BASE32_NOPAD.decode(raw)?;
 
-    let checksum = extract_crc(&mut b32_decoded);
+    let checksum = extract_crc(&mut b32_decoded)?;
     let v_checksum = valid_checksum(&b32_decoded, checksum);
     if !v_checksum {
         Err(err!(ChecksumFailure, "Checksum mismatch"))
