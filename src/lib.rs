@@ -346,7 +346,7 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
 fn from_seed(source: &str) -> Result<(u8, [u8; 32])> {
     if source.len() != ENCODED_SEED_LENGTH {
         let l = source.len();
-        return Err(err!(InvalidSeedLength, "Bad seed length: {}", l));
+        return Err(err!(InvalidKeyLength, "Bad seed length: {}", l));
     }
 
     let source_bytes = source.as_bytes();
@@ -475,7 +475,7 @@ mod tests {
         let pair = KeyPair::from_seed(seed);
         assert!(pair.is_err());
         if let Err(e) = pair {
-            assert_eq!(e.kind(), ErrorKind::InvalidSeedLength);
+            assert_eq!(e.kind(), ErrorKind::InvalidKeyLength);
         }
     }
 

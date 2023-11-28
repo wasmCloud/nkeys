@@ -250,7 +250,7 @@ mod tests {
         let pair = XKey::from_seed(seed);
         assert!(pair.is_err());
         if let Err(e) = pair {
-            assert_eq!(e.kind(), ErrorKind::InvalidSeedLength);
+            assert_eq!(e.kind(), ErrorKind::InvalidKeyLength);
         }
     }
 
