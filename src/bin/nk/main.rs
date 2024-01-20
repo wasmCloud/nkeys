@@ -23,7 +23,7 @@ struct Cli {
 enum Command {
     #[structopt(name = "gen", about = "Generates a key pair")]
     Gen {
-        /// The type of key pair to generate. May be Account, User, Module, Service, Server, Operator, Cluster
+        /// The type of key pair to generate. May be Account, User, Module, Service, Server, Operator, Cluster, Curve (xkey)
         #[structopt(case_insensitive = true)]
         keytype: KeyPairType,
         #[structopt(
