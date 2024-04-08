@@ -1,7 +1,5 @@
 use std::io::Cursor;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
 use super::error::{Error, ErrorKind};
 use super::Result;
 
@@ -45,26 +43,18 @@ pub(crate) fn valid_checksum(data: &[u8], expected: u16) -> bool {
 
 pub(crate) fn push_crc(data: &mut Vec<u8>) {
     let crc = crc16(data);
-    data.write_u16::<LittleEndian>(crc).unwrap();
+    data.extend(u16::to_le_bytes(crc));
 }
 
 pub(crate) fn extract_crc(data: &mut Vec<u8>) -> Result<u16> {
-    let crc_end_idx = if data.len() >= 2 {
-        data.len() - 2
-    } else {
-        return Err(Error::new(
-            ErrorKind::ChecksumFailure,
-            Some("CRC data vector contains less than two characters"),
-        ));
-    };
-    let crc_bytes = data[..crc_end_idx].to_vec();
-
-    let mut reader = Cursor::new(crc_bytes);
-    (*data).truncate(crc_end_idx);
-    reader.read_u16::<LittleEndian>().map_err(|e| {
+    let data_len = data.len().checked_sub(2).ok_or_else(|| {
         Error::new(
             ErrorKind::ChecksumFailure,
-            Some(format!("failed to read u16: {e}").as_str()),
+            Some("CRC data vector contains less than two characters"),
         )
-    })
+    })?;
+
+    let crc = u16::from_le_bytes(data[..2].try_into().unwrap());
+    data.truncate(data_len);
+    Ok(crc)
 }
