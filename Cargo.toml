@@ -35,7 +35,6 @@ ed25519-dalek = { version = "2.0.0", default-features = false, features = [
     "digest",
 ] }
 rand = "0.8"
-byteorder = "1.3.4"
 data-encoding = "2.3.0"
 log = "0.4.11"
 crypto_box = { version = "0.9.1", optional = true } # For xKeys support
