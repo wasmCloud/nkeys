@@ -38,7 +38,7 @@ pub(crate) fn crc16(data: &[u8]) -> u16 {
 }
 
 pub(crate) fn valid_checksum(data: &[u8], expected: u16) -> bool {
-    crc16(data) != expected
+    crc16(data) == expected
 }
 
 pub(crate) fn push_crc(data: &mut Vec<u8>) {
@@ -54,7 +54,29 @@ pub(crate) fn extract_crc(data: &mut Vec<u8>) -> Result<u16> {
         )
     })?;
 
-    let crc = u16::from_le_bytes(data[..2].try_into().unwrap());
+    let crc = u16::from_le_bytes(data[data_len..].try_into().unwrap());
     data.truncate(data_len);
     Ok(crc)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{crc16, extract_crc, push_crc, valid_checksum};
+
+    #[test]
+    fn e2e() {
+        let mut raw_data = rand::random::<[u8; 32]>();
+        let data_crc = crc16(&raw_data);
+
+        let mut data = raw_data.to_vec();
+        push_crc(&mut data);
+
+        let crc = extract_crc(&mut data).unwrap();
+        assert_eq!(raw_data, data.as_slice());
+        assert_eq!(data_crc, crc);
+        assert!(valid_checksum(&raw_data, data_crc));
+
+        raw_data[17] = raw_data[17].wrapping_sub(1);
+        assert!(!valid_checksum(&raw_data, data_crc));
+    }
 }
