@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn from_seed_rejects_bad_prefix() {
-        let seed = "FAAPN4W3EG6KCJGUQTKTJ5GSB5NHK5CHAJL4DBGFUM3HHROI4XUEP4OBK4";
+        let seed = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
         let pair = KeyPair::from_seed(seed);
         assert!(pair.is_err());
         if let Err(e) = pair {
@@ -460,20 +460,15 @@ mod tests {
         }
     }
 
-    /*
-    * TODO - uncomment this test when I can figure out how to encode a bad checksum
-     * without first triggering a base32 decoding failure :)
-
-        #[test]
-        fn from_seed_rejects_bad_checksum() {
-            let seed = "SAAPN4W3EG6KCJGUQTKTJ5GSB5NHK5CHAJL4DBGFUM3HHROI4XUEP4OBK4";
-            let pair = KeyPair::from_seed(seed);
-            assert!(pair.is_err());
-            if let Err(e) = pair {
-                assert_eq!(e.kind(), ErrorKind::ChecksumFailure);
-            }
+    #[test]
+    fn from_seed_rejects_bad_checksum() {
+        let seed = "FAAPN4W3EG6KCJGUQTKTJ5GSB5NHK5CHAJL4DBGFUM3HHROI4XUEP4OBK4";
+        let pair = KeyPair::from_seed(seed);
+        assert!(pair.is_err());
+        if let Err(e) = pair {
+            assert_eq!(e.kind(), ErrorKind::ChecksumFailure);
         }
-    */
+    }
 
     #[test]
     fn from_seed_rejects_bad_length() {
