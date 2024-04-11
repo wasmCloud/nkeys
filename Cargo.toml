@@ -1,6 +1,6 @@
 [package]
 name = "nkeys"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["wasmCloud Team"]
 edition = "2021"
 description = "Rust implementation of the NATS nkeys library"
