@@ -58,6 +58,12 @@ mod xkeys;
 #[cfg(feature = "xkeys")]
 pub use xkeys::XKey;
 
+#[cfg(feature = "jwk")]
+mod jwk;
+
+#[cfg(feature = "jwk")]
+pub use jwk::JsonWebKey;
+
 const ENCODED_SEED_LENGTH: usize = 58;
 const ENCODED_PUBKEY_LENGTH: usize = 56;
 
@@ -287,33 +293,17 @@ impl KeyPair {
 
     /// Attempts to produce a public-only key pair from the given encoded public key string
     pub fn from_public_key(source: &str) -> Result<KeyPair> {
-        if source.len() != ENCODED_PUBKEY_LENGTH {
-            let l = source.len();
-            return Err(err!(InvalidKeyLength, "Bad key length: {}", l));
-        }
+        let (prefix, bytes) = from_public_key(source)?;
 
-        let source_bytes = source.as_bytes();
-        let mut raw = decode_raw(source_bytes)?;
+        let pk = VerifyingKey::from_bytes(&bytes)
+            .map_err(|_| err!(VerifyError, "Could not read public key"))?;
 
-        let prefix = raw[0];
-        if !valid_public_key_prefix(prefix) {
-            Err(err!(
-                InvalidPrefix,
-                "Not a valid public key prefix: {}",
-                raw[0]
-            ))
-        } else {
-            raw.remove(0);
-            match VerifyingKey::try_from(&raw[..]) {
-                Ok(pk) => Ok(KeyPair {
-                    kp_type: KeyPairType::from(prefix),
-                    pk,
-                    sk: None,
-                    signing_key: None,
-                }),
-                Err(_) => Err(err!(VerifyError, "Could not read public key")),
-            }
-        }
+        Ok(KeyPair {
+            kp_type: KeyPairType::from(prefix),
+            pk,
+            sk: None,
+            signing_key: None,
+        })
     }
 
     /// Attempts to produce a full key pair from the given encoded seed string
@@ -346,6 +336,32 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
     } else {
         Ok(b32_decoded)
     }
+}
+
+/// Returns the prefix byte and the underlying public key bytes
+fn from_public_key(source: &str) -> Result<(u8, [u8; 32])> {
+    if source.len() != ENCODED_PUBKEY_LENGTH {
+        let l = source.len();
+        return Err(err!(InvalidKeyLength, "Bad key length: {}", l));
+    }
+
+    let source_bytes = source.as_bytes();
+    let mut raw = decode_raw(source_bytes)?;
+
+    let prefix = raw[0];
+    if !valid_public_key_prefix(prefix) {
+        return Err(err!(
+            InvalidPrefix,
+            "Not a valid public key prefix: {}",
+            raw[0]
+        ));
+    }
+    raw.remove(0);
+
+    let mut public_key = [0u8; 32];
+    public_key.copy_from_slice(&raw[..]);
+
+    Ok((prefix, public_key))
 }
 
 /// Returns the type and the seed
@@ -518,6 +534,16 @@ mod tests {
         assert!(pair.is_err());
         if let Err(e) = pair {
             assert_eq!(e.kind(), ErrorKind::InvalidKeyLength);
+        }
+    }
+
+    #[test]
+    fn from_public_key_rejects_bad_prefix() {
+        let public_key = "ZCO4XYNKEN7ZFQ42BHYCBYI3K7USOGG43C2DIJZYWSQ2YEMBOZWN6PYH";
+        let pair = KeyPair::from_public_key(public_key);
+        assert!(pair.is_err());
+        if let Err(e) = pair {
+            assert_eq!(e.kind(), ErrorKind::InvalidPrefix);
         }
     }
 
