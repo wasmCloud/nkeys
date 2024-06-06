@@ -42,6 +42,8 @@ pub enum ErrorKind {
     IncorrectKeyType,
     /// Payload not valid (or failed to be decrypted)
     InvalidPayload,
+    /// Thumbprint could not be calculated over the provided public key value
+    ThumbprintCalculationFailure,
 }
 
 /// A handy macro borrowed from the `signatory` crate that lets library-internal code generate
@@ -70,6 +72,7 @@ impl ErrorKind {
             ErrorKind::SignatureError => "Signature failure",
             ErrorKind::IncorrectKeyType => "Incorrect key type",
             ErrorKind::InvalidPayload => "Invalid payload",
+            ErrorKind::ThumbprintCalculationFailure => "Thumbprint calculation failure",
         }
     }
 }
