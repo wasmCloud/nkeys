@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn from_seed_rejects_bad_prefix() {
-        let seed = "FAAPN4W3EG6KCJGUQTKTJ5GSB5NHK5CHAJL4DBGFUM3HHROI4XUEP4OBK4";
+        let seed = "SZAIB67JMUPS5OKP6BZNCFTIMHOTS6JIX2C53TLSNEROIRFBJLSK3NUOVY";
         let pair = XKey::from_seed(seed);
         assert!(pair.is_err());
         if let Err(e) = pair {
