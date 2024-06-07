@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/encabulators/nkeys.svg?branch=master)](https://travis-ci.org/encabulators/nkeys)
+[![Build Status](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml/badge.svg?branch=master)](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml)
 
 # NKeys
 
