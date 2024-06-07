@@ -30,4 +30,4 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
       - name: Test
-        run: cargo test
+        run: cargo test --all-features
