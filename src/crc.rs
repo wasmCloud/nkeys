@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 use super::error::{Error, ErrorKind};
 use super::Result;
 
