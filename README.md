@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml/badge.svg?branch=master)](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml)
+[![Build Status](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/wasmCloud/nkeys/actions/workflows/build.yaml)
 
 # NKeys
 
