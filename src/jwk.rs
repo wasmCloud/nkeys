@@ -14,7 +14,7 @@ const JWK_KEY_TYPE: &str = "OKP";
 const JWK_ALGORITHM: &str = "EdDSA";
 const JWK_SUBTYPE: &str = "Ed25519";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonWebKey {
     /// Intended use of the JWK, this is based on the KeyPairType of the KeyPair the JWK is based on, using "enc" for KeyPairType::Curve, otherwise "sig"
     #[serde(rename = "use")]
