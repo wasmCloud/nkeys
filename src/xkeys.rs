@@ -203,11 +203,18 @@ impl XKey {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for XKey {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::error::ErrorKind;
-    const MESSAGE: &'static [u8] = b"this is super secret";
+    const MESSAGE: &[u8] = b"this is super secret";
 
     #[test]
     fn seed_encode_decode_round_trip() {
