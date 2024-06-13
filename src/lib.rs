@@ -64,6 +64,9 @@ mod jwk;
 #[cfg(feature = "jwk")]
 pub use jwk::JsonWebKey;
 
+#[cfg(feature = "pkcs8")]
+use ed25519::pkcs8::{self, EncodePrivateKey};
+
 const ENCODED_SEED_LENGTH: usize = 58;
 const ENCODED_PUBKEY_LENGTH: usize = 56;
 
@@ -323,6 +326,24 @@ impl KeyPair {
     /// Returns the type of this key pair.
     pub fn key_pair_type(&self) -> KeyPairType {
         self.kp_type.clone()
+    }
+
+    #[cfg(feature = "pkcs8")]
+    fn to_pkcs8_der(&self) -> Result<pkcs8::SecretDocument> {
+        if let Some(signing_key) = self.signing_key.clone() {
+            Ok(signing_key.to_pkcs8_der().map_err(|err| {
+                err!(
+                    Pkcs8ConversionFailure,
+                    "Could not convert SigningKey into pkcs8 der format: {}",
+                    err
+                )
+            })?)
+        } else {
+            Err(err!(
+                MissingSigningKey,
+                "Attempted to convert Public KeyPair into pkcs8 der"
+            ))
+        }
     }
 }
 

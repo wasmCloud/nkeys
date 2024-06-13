@@ -44,6 +44,12 @@ pub enum ErrorKind {
     InvalidPayload,
     /// Thumbprint could not be calculated over the provided public key value
     ThumbprintCalculationFailure,
+    /// SigningKey could not be converted converted to PKCS 8 DER format
+    #[cfg(feature = "pkcs8")]
+    Pkcs8ConversionFailure,
+    /// PKCS 8 DER conversion was called on a keypair that does not have a Signing Key
+    #[cfg(feature = "pkcs8")]
+    MissingSigningKey,
 }
 
 /// A handy macro borrowed from the `signatory` crate that lets library-internal code generate
@@ -73,6 +79,10 @@ impl ErrorKind {
             ErrorKind::IncorrectKeyType => "Incorrect key type",
             ErrorKind::InvalidPayload => "Invalid payload",
             ErrorKind::ThumbprintCalculationFailure => "Thumbprint calculation failure",
+            #[cfg(feature = "pkcs8")]
+            ErrorKind::Pkcs8ConversionFailure => "PKCS 8 Conversion Failure",
+            #[cfg(feature = "pkcs8")]
+            ErrorKind::MissingSigningKey => "Missing Signing Key",
         }
     }
 }
