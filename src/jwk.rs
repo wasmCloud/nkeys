@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{err, from_public_key, from_seed, KeyPair, KeyPairType, Result};
+use crate::{decode_seed, err, from_public_key, KeyPair, KeyPairType, Result};
 use data_encoding::BASE64URL_NOPAD;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ pub struct JsonWebKey {
 
 impl JsonWebKey {
     pub fn from_seed(source: &str) -> Result<Self> {
-        let (prefix, seed) = from_seed(source)?;
+        let (prefix, seed) = decode_seed(source)?;
         let sk = SigningKey::from_bytes(&seed);
         let kp_type = &KeyPairType::from(prefix);
         let public_key = BASE64URL_NOPAD.encode(sk.verifying_key().as_bytes());
