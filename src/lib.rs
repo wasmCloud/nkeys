@@ -308,7 +308,7 @@ impl KeyPair {
 
     /// Attempts to produce a full key pair from the given encoded seed string
     pub fn from_seed(source: &str) -> Result<KeyPair> {
-        let (ty, seed) = from_seed(source)?;
+        let (ty, seed) = decode_seed(source)?;
 
         let signing_key = SigningKey::from_bytes(&seed);
 
@@ -364,8 +364,9 @@ fn from_public_key(source: &str) -> Result<(u8, [u8; 32])> {
     Ok((prefix, public_key))
 }
 
-/// Returns the type and the seed
-fn from_seed(source: &str) -> Result<(u8, [u8; 32])> {
+/// Attempts to decode the provided base32 encoded string into a valid prefix byte and the private key seed bytes.
+/// NOTE: This is considered an advanced use case, it's generally recommended to stick with [`KeyPair::from_seed`] instead.
+pub fn decode_seed(source: &str) -> Result<(u8, [u8; 32])> {
     if source.len() != ENCODED_SEED_LENGTH {
         let l = source.len();
         return Err(err!(InvalidKeyLength, "Bad seed length: {}", l));
@@ -440,6 +441,17 @@ fn encode_prefix(prefix: &[u8], key: &[u8]) -> String {
 mod tests {
     use super::*;
     use crate::error::ErrorKind;
+
+    #[test]
+    fn validate_decode_seed() {
+        let input_bytes = generate_seed_rand();
+        let seed = encode_seed(&KeyPairType::User, input_bytes.as_slice());
+
+        let (prefix, decoded_bytes) = decode_seed(&seed).unwrap();
+
+        assert_eq!(prefix, PREFIX_BYTE_USER);
+        assert_eq!(decoded_bytes, input_bytes);
+    }
 
     #[test]
     fn seed_encode_decode_round_trip() {

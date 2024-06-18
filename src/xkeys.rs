@@ -1,6 +1,6 @@
 use crate::{
-    decode_raw, encode, encode_prefix, encode_seed, err, from_seed, KeyPairType, PREFIX_BYTE_CURVE,
-    PREFIX_BYTE_PRIVATE,
+    decode_raw, decode_seed, encode, encode_prefix, encode_seed, err, KeyPairType,
+    PREFIX_BYTE_CURVE, PREFIX_BYTE_PRIVATE,
 };
 
 use super::Result;
@@ -86,7 +86,7 @@ impl XKey {
 
     /// Attempts to produce a full xkey pair from the given encoded seed string
     pub fn from_seed(source: &str) -> Result<Self> {
-        let (ty, seed) = from_seed(source)?;
+        let (ty, seed) = decode_seed(source)?;
 
         if ty != PREFIX_BYTE_CURVE {
             return Err(err!(
