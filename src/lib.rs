@@ -346,7 +346,8 @@ fn decode_raw(raw: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Returns the prefix byte and the underlying public key bytes
-fn from_public_key(source: &str) -> Result<(u8, [u8; 32])> {
+/// NOTE: This is considered an advanced use case, it's generally recommended to stick with [`KeyPair::from_public_key`] instead.
+pub fn from_public_key(source: &str) -> Result<(u8, [u8; 32])> {
     if source.len() != ENCODED_PUBKEY_LENGTH {
         let l = source.len();
         return Err(err!(InvalidKeyLength, "Bad key length: {}", l));
@@ -455,6 +456,17 @@ mod tests {
         let seed = encode_seed(&KeyPairType::User, input_bytes.as_slice());
 
         let (prefix, decoded_bytes) = decode_seed(&seed).unwrap();
+
+        assert_eq!(prefix, PREFIX_BYTE_USER);
+        assert_eq!(decoded_bytes, input_bytes);
+    }
+
+    #[test]
+    fn validate_from_public_key() {
+        let input_bytes = generate_seed_rand();
+        let public_key = encode(&KeyPairType::User, input_bytes.as_slice());
+
+        let (prefix, decoded_bytes) = from_public_key(&public_key).unwrap();
 
         assert_eq!(prefix, PREFIX_BYTE_USER);
         assert_eq!(decoded_bytes, input_bytes);
