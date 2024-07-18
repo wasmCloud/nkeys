@@ -270,6 +270,13 @@ impl KeyPair {
 
     /// Attempts to verify that the given signature is valid for the given input
     pub fn verify(&self, input: &[u8], sig: &[u8]) -> Result<()> {
+        if sig.len() != ed25519::Signature::BYTE_SIZE {
+            return Err(err!(
+                InvalidSignatureLength,
+                "Signature did not match expected length"
+            ));
+        }
+
         let mut fixedsig = [0; ed25519::Signature::BYTE_SIZE];
         fixedsig.copy_from_slice(sig);
         let insig = ed25519::Signature::from_bytes(&fixedsig);
@@ -537,6 +544,16 @@ mod tests {
         let sig = user.sign(msg).unwrap();
         let res = user.verify(b"this doesn't match the message", sig.as_slice());
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn sign_and_verify_rejects_invalid_signature_length() {
+        let kp = KeyPair::new_user();
+        let res = kp.verify(&[], &[]);
+        assert!(res.is_err());
+        if let Err(e) = res {
+            assert_eq!(e.kind(), ErrorKind::InvalidSignatureLength);
+        }
     }
 
     #[test]
