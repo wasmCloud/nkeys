@@ -44,6 +44,8 @@ pub enum ErrorKind {
     InvalidPayload,
     /// Thumbprint could not be calculated over the provided public key value
     ThumbprintCalculationFailure,
+    /// Signature did not match the expected length (64 bytes)
+    InvalidSignatureLength,
 }
 
 /// A handy macro borrowed from the `signatory` crate that lets library-internal code generate
@@ -66,6 +68,7 @@ impl ErrorKind {
         match self {
             ErrorKind::InvalidPrefix => "Invalid byte prefix",
             ErrorKind::InvalidKeyLength => "Invalid key length",
+            ErrorKind::InvalidSignatureLength => "Invalid signature length",
             ErrorKind::VerifyError => "Signature verification failure",
             ErrorKind::ChecksumFailure => "Checksum match failure",
             ErrorKind::CodecFailure => "Codec failure",
