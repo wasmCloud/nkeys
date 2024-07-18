@@ -58,12 +58,6 @@ mod xkeys;
 #[cfg(feature = "xkeys")]
 pub use xkeys::XKey;
 
-#[cfg(feature = "jwk")]
-mod jwk;
-
-#[cfg(feature = "jwk")]
-pub use jwk::JsonWebKey;
-
 const ENCODED_SEED_LENGTH: usize = 58;
 const ENCODED_PUBKEY_LENGTH: usize = 56;
 

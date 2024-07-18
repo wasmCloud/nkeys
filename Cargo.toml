@@ -24,8 +24,6 @@ cli = [
 
 xkeys = ["dep:crypto_box"]
 
-jwk = ["serde", "serde_json", "sha2"]
-
 [[bin]]
 name = "nk"
 required-features = ["cli"]
@@ -48,10 +46,6 @@ term-table = { version = "1.3.0", optional = true }
 exitfailure = { version = "0.5.1", optional = true }
 env_logger = { version = "0.9", optional = true }
 serde_json = { version = "1.0", optional = true }
-
-# jwk dependencies
-serde = { version = "1.0", optional = true, features = ["derive"] }
-sha2 = { version = "0.10", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: We need this due to an underlying dependency being pulled in by
