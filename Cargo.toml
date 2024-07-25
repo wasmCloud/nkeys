@@ -1,6 +1,6 @@
 [package]
 name = "nkeys"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["wasmCloud Team"]
 edition = "2021"
 description = "Rust implementation of the NATS nkeys library"
@@ -23,6 +23,9 @@ cli = [
 ]
 
 xkeys = ["dep:crypto_box"]
+
+[package.metadata.docs.rs]
+all_features = true
 
 [[bin]]
 name = "nk"
