@@ -17,7 +17,8 @@ use crypto_box::{PublicKey, SecretKey};
 use rand::{CryptoRng, Rng, RngCore};
 
 /// The main interface used for reading and writing _nkey-encoded_ curve key
-/// pairs. Instances of this type cannot be cloned.
+/// pairs.
+#[derive(Clone)]
 pub struct XKey {
     public: PublicKey,
     secret: Option<SecretKey>,
