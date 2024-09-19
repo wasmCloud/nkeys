@@ -87,7 +87,8 @@ const PUBLIC_KEY_PREFIXES: [u8; 8] = [
 type Result<T> = std::result::Result<T, crate::error::Error>;
 
 /// The main interface used for reading and writing _nkey-encoded_ key pairs, including
-/// seeds and public keys. Instances of this type cannot be cloned.
+/// seeds and public keys.
+#[derive(Clone)]
 pub struct KeyPair {
     kp_type: KeyPairType,
     sk: Option<SecretKey>, //rawkey_kind: RawKeyKind,
