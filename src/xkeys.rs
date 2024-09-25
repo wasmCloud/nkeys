@@ -92,7 +92,7 @@ impl XKey {
         if ty != PREFIX_BYTE_CURVE {
             return Err(err!(
                 InvalidPrefix,
-                "Expect a cruve, got {:?}",
+                "Expected a curve, got {:?}",
                 KeyPairType::from(ty)
             ));
         }
