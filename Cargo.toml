@@ -32,7 +32,7 @@ name = "nk"
 required-features = ["cli"]
 
 [dependencies]
-signatory = "0.27"
+signature = { version = "2", features = ["std"] }
 ed25519 = { version = "2.2.3", default-features = false }
 ed25519-dalek = { version = "2.0.0", default-features = false, features = [
     "digest",
