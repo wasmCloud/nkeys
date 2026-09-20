@@ -14,7 +14,7 @@ use std::fmt::{self, Debug};
 const XKEY_VERSION_V1: &[u8] = b"xkv1";
 
 use crypto_box::{PublicKey, SecretKey};
-use rand::{CryptoRng, Rng, RngCore};
+use rand::{CryptoRng, RngExt};
 
 /// The main interface used for reading and writing _nkey-encoded_ curve key
 /// pairs.
@@ -37,7 +37,7 @@ impl XKey {
     /// rand support. Use [`new_from_raw`](XKey::new_from_raw) instead
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
-        Self::new_with_rand(&mut rand::rngs::OsRng)
+        Self::new_with_rand(&mut rand::rng())
     }
 
     /// Create a new xkey pair from a random generator
@@ -47,8 +47,8 @@ impl XKey {
     /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
     /// rand support. Use [`new_from_raw`](XKey::new_from_raw) instead
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_with_rand(rand: &mut (impl CryptoRng + RngCore)) -> Self {
-        Self::new_from_raw(rand.gen())
+    pub fn new_with_rand(rand: &mut impl CryptoRng) -> Self {
+        Self::new_from_raw(rand.random())
     }
 
     /// Create a new xkey pair using a pre-existing set of random bytes.
@@ -162,7 +162,7 @@ impl XKey {
     /// rand support. Use [`seal_with_nonce`](XKey::seal_with_nonce) instead
     #[cfg(not(target_arch = "wasm32"))]
     pub fn seal(&self, input: &[u8], recipient: &Self) -> Result<Vec<u8>> {
-        self.seal_with_rand(input, recipient, &mut rand::rngs::OsRng)
+        self.seal_with_rand(input, recipient, rand::rng())
     }
 
     /// NOTE: This is not available if using on a wasm32-unknown-unknown target due to the lack of
@@ -172,9 +172,10 @@ impl XKey {
         &self,
         input: &[u8],
         recipient: &Self,
-        rand: impl CryptoRng + RngCore,
+        mut rand: impl CryptoRng,
     ) -> Result<Vec<u8>> {
-        let nonce = SalsaBox::generate_nonce(rand);
+        let mut nonce = Nonce::default();
+        rand.fill_bytes(&mut nonce[..]);
         self.seal_with_nonce(input, recipient, nonce)
     }
 

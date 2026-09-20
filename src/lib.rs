@@ -278,7 +278,7 @@ impl KeyPair {
 
         match self.pk.verify(input, &insig) {
             Ok(()) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(err!(SignatureError, "{}", e)),
         }
     }
 
@@ -396,8 +396,8 @@ pub fn decode_seed(source: &str) -> Result<(u8, [u8; 32])> {
 }
 
 fn generate_seed_rand() -> [u8; 32] {
-    let mut rng = rand::thread_rng();
-    rng.gen::<[u8; 32]>()
+    let mut rng = rand::rng();
+    rng.random::<[u8; 32]>()
 }
 
 fn get_prefix_byte(kp_type: &KeyPairType) -> u8 {
