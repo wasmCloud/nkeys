@@ -1,33 +1,27 @@
 extern crate serde_json;
 
+use clap::{Parser, Subcommand};
 use nkeys::{self, KeyPair, KeyPairType};
 use serde_json::json;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
-use structopt::clap::AppSettings;
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt, Clone)]
-#[structopt(
-    global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands]),
-    name = "nk",
-    about = "A tool for manipulating nkeys"
-)]
+#[derive(Parser, Debug, Clone)]
+#[command(name = "nk", about = "A tool for manipulating nkeys")]
 struct Cli {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     cmd: Command,
 }
 
-#[derive(StructOpt, Debug, Clone)]
+#[derive(Subcommand, Debug, Clone)]
 enum Command {
-    #[structopt(name = "gen", about = "Generates a key pair")]
+    /// Generates a key pair
     Gen {
         /// The type of key pair to generate. May be Account, User, Module, Service, Server, Operator, Cluster, Curve (xkey)
-        #[structopt(case_insensitive = true)]
         keytype: KeyPairType,
-        #[structopt(
-            short = "o",
+        #[arg(
+            short = 'o',
             long = "output",
             default_value = "text",
             help = "Specify output format (text or json)"
@@ -36,7 +30,7 @@ enum Command {
     },
 }
 
-#[derive(StructOpt, Debug, Clone)]
+#[derive(Debug, Clone)]
 enum Output {
     Text,
     Json,
@@ -69,7 +63,7 @@ impl fmt::Display for OutputParseErr {
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let args = Cli::parse();
     let cmd = &args.cmd;
     env_logger::init();
 
